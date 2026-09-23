@@ -14,7 +14,9 @@ OUT = ROOT / "workflows" / "antonio-ferraz"
 BASE_ID = "appVl3yjG9npCQ5Rz"
 TABLE_ID = "tblXRz41XCCWiRrKx"
 MODEL = "openai/gpt-6-luna"
-ALERT_EMAIL = "rwbfreelancer@gmail.com"
+SUPPORT_INBOX = "rwbfreelancer@gmail.com"
+# Alerts go to a +alerts alias of the same inbox. The trigger skips that alias, so alerts never loop back.
+ALERT_EMAIL = "rwbfreelancer+alerts@gmail.com"
 CATEGORIES = ["Billing", "Access", "Scheduling", "Technical Support", "General Question", "Refund Request"]
 STATUSES = ["Processing", "Drafted", "Needs Review", "Error"]
 
@@ -109,7 +111,7 @@ def gmail_send(name, pos, to, subject, message):
 
 
 # ---------- Expressions ----------
-E = "$('Normalize Email').item.json"
+E = "$('One Email at a Time').item.json"
 REC = "$('Save Email').item.json.id"
 AI = "$('Check AI Result').item.json"
 RECORD_URL = f"https://airtable.com/{BASE_ID}/{TABLE_ID}/{{{{ {REC} }}}}"
@@ -202,7 +204,7 @@ nodes = [
            "## 1. New email in, duplicates out\n"
            "Checks Gmail every minute. Skips emails sent by us, so alerts never loop back.\n"
            "**Config** holds everything you may want to edit: the AI prompt, the 80% confidence rule, and the alert email.\n"
-           "An email that is already in Airtable (same Message ID) is skipped.", 5),
+           "Emails go through one at a time. An email that is already in Airtable (same Message ID) is skipped.", 5),
     sticky("Note: AI", [1180, 80], 600, 640,
            "## 2. Log it, then let AI sort it and write a draft\n"
            "A row is saved first with status **Processing**, so every email is tracked even if the AI fails.\n"
@@ -216,17 +218,17 @@ nodes = [
     node("Gmail Trigger", "n8n-nodes-base.gmailTrigger", 1.4, [0, 300], {
         "pollTimes": {"item": [{"mode": "everyMinute"}]},
         "simple": False,
-        "filters": {"q": "in:inbox -from:me", "readStatus": "both"},
+        "filters": {"q": f"in:inbox -to:{ALERT_EMAIL}", "readStatus": "both"},
         "options": {},
     }, credentials=cred("gmailOAuth2")),
 
-    set_node("Config", [220, 300], [
+    set_node("Config", [200, 300], [
         assign("systemPrompt", system_prompt),
         assign("confidenceThreshold", 0.8, "number"),
         assign("alertEmail", ALERT_EMAIL),
     ]),
 
-    set_node("Normalize Email", [440, 300], [
+    set_node("Normalize Email", [400, 300], [
         assign("messageId", "={{ $('Gmail Trigger').item.json.id }}"),
         assign("threadId", "={{ $('Gmail Trigger').item.json.threadId }}"),
         assign("from", "={{ $('Gmail Trigger').item.json.from?.text ?? '' }}"),
@@ -236,7 +238,9 @@ nodes = [
         assign("receivedAt", "={{ $('Gmail Trigger').item.json.date ?? $now.toISO() }}"),
     ]),
 
-    node("Find Existing Record", "n8n-nodes-base.airtable", 2.2, [660, 300], {
+    node("One Email at a Time", "n8n-nodes-base.splitInBatches", 3, [600, 300], {"options": {}}),
+
+    node("Find Existing Record", "n8n-nodes-base.airtable", 2.2, [800, 300], {
         "operation": "search", "base": rl(BASE_ID), "table": rl(TABLE_ID),
         "filterByFormula": f"={{Message ID}} = '{{{{ {E}.messageId }}}}'",
         "returnAll": False, "limit": 1,
@@ -244,9 +248,9 @@ nodes = [
     }, credentials=cred("airtableTokenApi"),
         alwaysOutputData=True, retryOnFail=True, maxTries=3, waitBetweenTries=2000),
 
-    if_node("Is New Email?", [860, 300], "={{ !$json.id }}"),
+    if_node("Is New Email?", [1000, 300], "={{ !$json.id }}"),
 
-    node("Skip Duplicate", "n8n-nodes-base.noOp", 1, [1060, 460], {}),
+    node("Skip Duplicate", "n8n-nodes-base.noOp", 1, [1000, 480], {}),
 
     airtable("Save Email", [1220, 280], "create", {
         "Message ID": f"={{{{ {E}.messageId }}}}",
@@ -335,7 +339,9 @@ def link(to, idx=0):
 connections = {
     "Gmail Trigger": {"main": [[link("Config")]]},
     "Config": {"main": [[link("Normalize Email")]]},
-    "Normalize Email": {"main": [[link("Find Existing Record")]]},
+    "Normalize Email": {"main": [[link("One Email at a Time")]]},
+    # Output 0 = all done, output 1 = next email.
+    "One Email at a Time": {"main": [[], [link("Find Existing Record")]]},
     "Find Existing Record": {"main": [[link("Is New Email?")]]},
     "Is New Email?": {"main": [[link("Save Email")], [link("Skip Duplicate")]]},
     "Save Email": {"main": [[link("Classify & Draft Reply")]]},
@@ -345,9 +351,13 @@ connections = {
     "Check AI Result": {"main": [[link("Save AI Result")]]},
     "Save AI Result": {"main": [[link("Create Gmail Draft")]]},
     "Create Gmail Draft": {"main": [[link("Needs a Person?")]]},
-    "Needs a Person?": {"main": [[link("Send Alert")], []]},
+    "Needs a Person?": {"main": [[link("Send Alert")], [link("One Email at a Time")]]},
     "Send Alert": {"main": [[link("Mark Alert Sent")]]},
     "Log AI Error": {"main": [[link("Send AI Error Alert")]]},
+    # Every path ends by going back for the next email.
+    "Skip Duplicate": {"main": [[link("One Email at a Time")]]},
+    "Mark Alert Sent": {"main": [[link("One Email at a Time")]]},
+    "Send AI Error Alert": {"main": [[link("One Email at a Time")]]},
 }
 
 settings = {"executionOrder": "v1", "saveDataErrorExecution": "all", "saveDataSuccessExecution": "all",
@@ -394,11 +404,11 @@ test_wf = {
     "nodes": [
         sticky("Note: Test", [-60, 80], 760, 380,
                "## Test helper\nSends 8 sample customer emails to the support inbox.\n"
-               "Use a **different** Gmail account from the support inbox. The main workflow skips emails sent by itself.", 5),
+               "Pick any Gmail credential. Do not send to the +alerts address, or the main workflow skips the emails.", 5),
         node("Run Test", "n8n-nodes-base.manualTrigger", 1, [0, 260], {}),
         node("Sample Emails", "n8n-nodes-base.code", 2, [220, 260], {"jsCode": TEST_CODE}),
         node("Send To Support Inbox", "n8n-nodes-base.gmail", 2.2, [440, 260], {
-            "resource": "message", "operation": "send", "sendTo": ALERT_EMAIL,
+            "resource": "message", "operation": "send", "sendTo": SUPPORT_INBOX,
             "subject": "={{ $json.subject }}", "emailType": "text", "message": "={{ $json.body }}",
             "options": {"appendAttribution": False},
         }, credentials={"gmailOAuth2": creds["testSenderGmail"]} if creds.get("testSenderGmail") else {},

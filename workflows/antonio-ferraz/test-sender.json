@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Test helper\nSends 8 sample customer emails to the support inbox.\nUse a **different** Gmail account from the support inbox. The main workflow skips emails sent by itself.",
+        "content": "## Test helper\nSends 8 sample customer emails to the support inbox.\nPick any Gmail credential. Do not send to the +alerts address, or the main workflow skips the emails.",
         "width": 760,
         "height": 380,
         "color": 5
@@ -57,7 +57,12 @@
         440,
         260
       ],
-      "credentials": {},
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gdu2fQT2pUiRWKqO",
+          "name": "reybinay01"
+        }
+      },
       "webhookId": "send-to-support-inbox"
     }
   ],

@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 1. New email in, duplicates out\nChecks Gmail every minute. Skips emails sent by us, so alerts never loop back.\n**Config** holds everything you may want to edit: the AI prompt, the 80% confidence rule, and the alert email.\nAn email that is already in Airtable (same Message ID) is skipped.",
+        "content": "## 1. New email in, duplicates out\nChecks Gmail every minute. Skips emails sent by us, so alerts never loop back.\n**Config** holds everything you may want to edit: the AI prompt, the 80% confidence rule, and the alert email.\nEmails go through one at a time. An email that is already in Airtable (same Message ID) is skipped.",
         "width": 1220,
         "height": 600,
         "color": 5
@@ -57,7 +57,7 @@
         },
         "simple": false,
         "filters": {
-          "q": "in:inbox -from:me",
+          "q": "in:inbox -to:rwbfreelancer+alerts@gmail.com",
           "readStatus": "both"
         },
         "options": {}
@@ -95,7 +95,7 @@
             {
               "id": "alertEmail",
               "name": "alertEmail",
-              "value": "rwbfreelancer@gmail.com",
+              "value": "rwbfreelancer+alerts@gmail.com",
               "type": "string"
             }
           ]
@@ -106,7 +106,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
-        220,
+        200,
         300
       ]
     },
@@ -164,7 +164,19 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
-        440,
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "name": "One Email at a Time",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        600,
         300
       ]
     },
@@ -181,7 +193,7 @@
           "value": "tblXRz41XCCWiRrKx",
           "mode": "id"
         },
-        "filterByFormula": "={Message ID} = '{{ $('Normalize Email').item.json.messageId }}'",
+        "filterByFormula": "={Message ID} = '{{ $('One Email at a Time').item.json.messageId }}'",
         "returnAll": false,
         "limit": 1,
         "options": {
@@ -194,7 +206,7 @@
       "type": "n8n-nodes-base.airtable",
       "typeVersion": 2.2,
       "position": [
-        660,
+        800,
         300
       ],
       "credentials": {
@@ -237,7 +249,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        860,
+        1000,
         300
       ]
     },
@@ -247,8 +259,8 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        1060,
-        460
+        1000,
+        480
       ]
     },
     {
@@ -267,13 +279,13 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Message ID": "={{ $('Normalize Email').item.json.messageId }}",
-            "Thread ID": "={{ $('Normalize Email').item.json.threadId }}",
+            "Message ID": "={{ $('One Email at a Time').item.json.messageId }}",
+            "Thread ID": "={{ $('One Email at a Time').item.json.threadId }}",
             "Status": "Processing",
-            "Received At": "={{ $('Normalize Email').item.json.receivedAt }}",
-            "From": "={{ $('Normalize Email').item.json.from }}",
-            "Subject": "={{ $('Normalize Email').item.json.subject }}",
-            "Message": "={{ $('Normalize Email').item.json.body }}",
+            "Received At": "={{ $('One Email at a Time').item.json.receivedAt }}",
+            "From": "={{ $('One Email at a Time').item.json.from }}",
+            "Subject": "={{ $('One Email at a Time').item.json.subject }}",
+            "Message": "={{ $('One Email at a Time').item.json.body }}",
             "Execution ID": "={{ $execution.id }}"
           },
           "matchingColumns": [],
@@ -526,7 +538,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=<email>\nFrom: {{ $('Normalize Email').item.json.from }}\nSubject: {{ $('Normalize Email').item.json.subject }}\n\n{{ $('Normalize Email').item.json.body }}\n</email>",
+        "text": "=<email>\nFrom: {{ $('One Email at a Time').item.json.from }}\nSubject: {{ $('One Email at a Time').item.json.subject }}\n\n{{ $('One Email at a Time').item.json.body }}\n</email>",
         "hasOutputParser": true,
         "messages": {
           "messageValues": [
@@ -887,12 +899,12 @@
       "parameters": {
         "resource": "draft",
         "operation": "create",
-        "subject": "=Re: {{ $('Normalize Email').item.json.subject }}",
+        "subject": "=Re: {{ $('One Email at a Time').item.json.subject }}",
         "emailType": "text",
         "message": "={{ $('Check AI Result').item.json.draftReply }}",
         "options": {
-          "threadId": "={{ $('Normalize Email').item.json.threadId }}",
-          "sendTo": "={{ $('Normalize Email').item.json.fromEmail }}"
+          "threadId": "={{ $('One Email at a Time').item.json.threadId }}",
+          "sendTo": "={{ $('One Email at a Time').item.json.fromEmail }}"
         }
       },
       "name": "Create Gmail Draft",
@@ -947,9 +959,9 @@
         "resource": "message",
         "operation": "send",
         "sendTo": "={{ $('Config').item.json.alertEmail }}",
-        "subject": "=[Support] {{ $('Check AI Result').item.json.category }} needs a person: {{ $('Normalize Email').item.json.subject }}",
+        "subject": "=[Support] {{ $('Check AI Result').item.json.category }} needs a person: {{ $('One Email at a Time').item.json.subject }}",
         "emailType": "text",
-        "message": "=A support email needs a person.\n\nWhy: {{ $('Check AI Result').item.json.reviewReason }}\nCategory: {{ $('Check AI Result').item.json.category }}\nConfidence: {{ Math.round($('Check AI Result').item.json.confidence * 100) }}%\n\nFrom: {{ $('Normalize Email').item.json.from }}\nSubject: {{ $('Normalize Email').item.json.subject }}\nSummary: {{ $('Check AI Result').item.json.summary }}\n\nA draft reply is waiting in Gmail. Check it before you send it.\n\nOpen the email: https://mail.google.com/mail/u/0/#all/{{ $('Normalize Email').item.json.threadId }}\nOpen the record: https://airtable.com/appVl3yjG9npCQ5Rz/tblXRz41XCCWiRrKx/{{ $('Save Email').item.json.id }}\n",
+        "message": "=A support email needs a person.\n\nWhy: {{ $('Check AI Result').item.json.reviewReason }}\nCategory: {{ $('Check AI Result').item.json.category }}\nConfidence: {{ Math.round($('Check AI Result').item.json.confidence * 100) }}%\n\nFrom: {{ $('One Email at a Time').item.json.from }}\nSubject: {{ $('One Email at a Time').item.json.subject }}\nSummary: {{ $('Check AI Result').item.json.summary }}\n\nA draft reply is waiting in Gmail. Check it before you send it.\n\nOpen the email: https://mail.google.com/mail/u/0/#all/{{ $('One Email at a Time').item.json.threadId }}\nOpen the record: https://airtable.com/appVl3yjG9npCQ5Rz/tblXRz41XCCWiRrKx/{{ $('Save Email').item.json.id }}\n",
         "options": {
           "appendAttribution": false
         }
@@ -1546,9 +1558,9 @@
         "resource": "message",
         "operation": "send",
         "sendTo": "={{ $('Config').item.json.alertEmail }}",
-        "subject": "=[Support] AI failed: {{ $('Normalize Email').item.json.subject }}",
+        "subject": "=[Support] AI failed: {{ $('One Email at a Time').item.json.subject }}",
         "emailType": "text",
-        "message": "=The AI step failed for one support email. No draft was made.\n\nError: {{ $json.error?.message ?? $json.error ?? 'Unknown error' }}\n\nFrom: {{ $('Normalize Email').item.json.from }}\nSubject: {{ $('Normalize Email').item.json.subject }}\n\nOpen the email: https://mail.google.com/mail/u/0/#all/{{ $('Normalize Email').item.json.threadId }}\nOpen the record: https://airtable.com/appVl3yjG9npCQ5Rz/tblXRz41XCCWiRrKx/{{ $('Save Email').item.json.id }}\n",
+        "message": "=The AI step failed for one support email. No draft was made.\n\nError: {{ $json.error?.message ?? $json.error ?? 'Unknown error' }}\n\nFrom: {{ $('One Email at a Time').item.json.from }}\nSubject: {{ $('One Email at a Time').item.json.subject }}\n\nOpen the email: https://mail.google.com/mail/u/0/#all/{{ $('One Email at a Time').item.json.threadId }}\nOpen the record: https://airtable.com/appVl3yjG9npCQ5Rz/tblXRz41XCCWiRrKx/{{ $('Save Email').item.json.id }}\n",
         "options": {
           "appendAttribution": false
         }
@@ -1594,6 +1606,18 @@
     },
     "Normalize Email": {
       "main": [
+        [
+          {
+            "node": "One Email at a Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One Email at a Time": {
+      "main": [
+        [],
         [
           {
             "node": "Find Existing Record",
@@ -1725,7 +1749,13 @@
             "index": 0
           }
         ],
-        []
+        [
+          {
+            "node": "One Email at a Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Send Alert": {
@@ -1744,6 +1774,39 @@
         [
           {
             "node": "Send AI Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Duplicate": {
+      "main": [
+        [
+          {
+            "node": "One Email at a Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Alert Sent": {
+      "main": [
+        [
+          {
+            "node": "One Email at a Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send AI Error Alert": {
+      "main": [
+        [
+          {
+            "node": "One Email at a Time",
             "type": "main",
             "index": 0
           }

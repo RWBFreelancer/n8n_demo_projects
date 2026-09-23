@@ -15,7 +15,7 @@
       "parameters": {
         "resource": "message",
         "operation": "send",
-        "sendTo": "rwbfreelancer@gmail.com",
+        "sendTo": "rwbfreelancer+alerts@gmail.com",
         "subject": "=[Support] Workflow error: {{ $json.workflow.name }}",
         "emailType": "text",
         "message": "=The support triage workflow stopped with an error.\n\nNode: {{ $json.execution.lastNodeExecuted }}\nError: {{ $json.execution.error.message }}\n\nOpen the run: {{ $json.execution.url }}\n",
