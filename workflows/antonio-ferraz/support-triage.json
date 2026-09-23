@@ -69,7 +69,12 @@
         0,
         300
       ],
-      "credentials": {}
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "KZB3vqszOfledt03",
+          "name": "Gmail account 2"
+        }
+      }
     },
     {
       "parameters": {
@@ -897,7 +902,12 @@
         2280,
         280
       ],
-      "credentials": {}
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "KZB3vqszOfledt03",
+          "name": "Gmail account 2"
+        }
+      }
     },
     {
       "parameters": {
@@ -951,7 +961,12 @@
         2720,
         200
       ],
-      "credentials": {},
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "KZB3vqszOfledt03",
+          "name": "Gmail account 2"
+        }
+      },
       "webhookId": "send-alert"
     },
     {
@@ -1545,7 +1560,12 @@
         2060,
         640
       ],
-      "credentials": {},
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "KZB3vqszOfledt03",
+          "name": "Gmail account 2"
+        }
+      },
       "webhookId": "send-ai-error-alert"
     }
   ],

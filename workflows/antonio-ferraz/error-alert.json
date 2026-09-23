@@ -30,7 +30,12 @@
         240,
         300
       ],
-      "credentials": {},
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "KZB3vqszOfledt03",
+          "name": "Gmail account 2"
+        }
+      },
       "webhookId": "send-error-email"
     }
   ],
