@@ -1,0 +1,57 @@
+# This is a "never upload" list. Anything matching a line below
+# stays on your computer and never reaches GitHub.
+
+# --- SECRETS. Never remove these lines. ---
+.env
+.env.*
+*.key
+*.pem
+credentials.json
+secrets.json
+config.local.*
+*_secret*
+*_token*
+
+# --- Big files belong in Google Drive, not here ---
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.wav
+*.mp3
+*.psd
+*.ai
+*.sketch
+*.fig
+*.zip
+*.rar
+*.7z
+*.iso
+*.exe
+*.msi
+
+# --- Junk your computer creates ---
+Thumbs.db
+desktop.ini
+.DS_Store
+*.tmp
+*.temp
+*.log
+~$*
+
+# --- Dependency folders (huge, and rebuildable) ---
+node_modules/
+venv/
+.venv/
+__pycache__/
+*.pyc
+dist/
+build/
+.cache/
+
+# --- Editor settings ---
+.vscode/
+.idea/
+
+# --- Add your own below this line ---
+!.env.example
