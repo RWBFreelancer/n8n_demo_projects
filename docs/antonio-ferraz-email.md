@@ -108,3 +108,20 @@ Thank you for your time. I am happy to answer any questions.
 
 Best regards,
 [Your name]
+
+---
+
+# Short reply: "I sent the email"
+Post this on the job post or in the chat after you send the email above.
+
+Hi Maria,
+
+I finished the test task. I sent my solution to maria@antonioferraz.co.
+The email has the Loom video, the AI prompts, my assumptions, and the time I spent.
+
+In short: new emails are sorted by AI, saved in Airtable with a draft reply, and a person gets an alert for refunds, unclear emails, or low confidence.
+
+Please tell me if you did not get it, or if you have any questions.
+
+Best regards,
+[Your name]
