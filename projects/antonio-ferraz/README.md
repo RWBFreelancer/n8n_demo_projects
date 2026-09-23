@@ -18,8 +18,9 @@ Gmail (trigger, drafts, alerts) → OpenRouter `openai/gpt-6-luna` → Airtable.
 | Airtable | base `appVl3yjG9npCQ5Rz`, table `tblXRz41XCCWiRrKx` (Support Requests) |
 | Support inbox | rwbfreelancer@gmail.com |
 | Alerts | rwbfreelancer+alerts@gmail.com (the trigger skips this address) |
-| Builder | `scripts/build_antonio_ferraz.py` → `workflows/antonio-ferraz/*.json` |
-| Prompt | `workflows/antonio-ferraz/system-prompt.md` |
+| Builder | `build.py` → `workflows/*.json` |
+| Prompt | `prompts/system-prompt.md` |
+| Client email + "sent" reply | `email.md` |
 
 ## Docs and versions checked (n8n 2.40.5)
 - Gmail Trigger 1.4, Gmail 2.2, Airtable 2.2, Set 3.5, If 2.3, Code 2, Loop Over Items 3,

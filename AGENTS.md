@@ -19,5 +19,11 @@ n8n demo workflows for client job applications (automation specialist).
 | Reports, client emails, prompts, notes | `docs/writing-style.md` |
 
 ## Folders
-- `workflows/<client-slug>/` — workflow JSON
-- `docs/<client-slug>.md` — brief, chosen route, test results
+- `docs/` — shared rules for all demos (this index points to them).
+- `projects/<client-slug>/` — one folder per demo. Keep everything for that demo here:
+  - `README.md` — brief, chosen route, IDs, doc links, test results, Loom talk track
+  - `email.md` — client email and any short replies
+  - `prompts/` — AI prompts
+  - `workflows/` — exported workflow JSON (no secrets)
+  - `build.py` — optional script that builds the workflow JSON
+- Example: `projects/antonio-ferraz/`.

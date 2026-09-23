@@ -1,15 +1,15 @@
 """Build the n8n workflow JSON for the antonio-ferraz support triage demo.
 
-Usage: python scripts/build_antonio_ferraz.py [credentials.json]
+Usage: python projects/antonio-ferraz/build.py [credentials.json]
 credentials.json (optional, not secret) maps credential type -> {"id": "...", "name": "..."}.
-The system prompt is read from workflows/antonio-ferraz/system-prompt.md.
+The system prompt is read from prompts/system-prompt.md. Output goes to workflows/.
 """
 import json
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "workflows" / "antonio-ferraz"
+HERE = Path(__file__).resolve().parent
+OUT = HERE / "workflows"
 
 BASE_ID = "appVl3yjG9npCQ5Rz"
 TABLE_ID = "tblXRz41XCCWiRrKx"
@@ -141,7 +141,7 @@ T = f"$('{N_TRIGGER}').item.json"
 RECORD_URL = f"https://airtable.com/{BASE_ID}/{TABLE_ID}/{{{{ {REC} }}}}"
 THREAD_URL = f"https://mail.google.com/mail/u/0/#all/{{{{ {E}.threadId }}}}"
 
-system_prompt = (OUT / "system-prompt.md").read_text(encoding="utf-8").strip()
+system_prompt = (HERE / "prompts" / "system-prompt.md").read_text(encoding="utf-8").strip()
 
 USER_PROMPT = (
     "=<email>\n"

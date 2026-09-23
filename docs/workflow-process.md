@@ -14,6 +14,8 @@
 - Paid or unpaid? Deadline?
 - Anything the client said they must see
 
+When the slug is known, create `projects/<client-slug>/` and save the brief in its `README.md`.
+
 ## 2. Check docs
 Follow `docs/docs-check.md` for every app and node in the plan.
 
@@ -33,5 +35,5 @@ See `docs/n8n-access.md`.
 - Logic: trace sample data through each node. Check expressions, field names, IF/Switch branches, empty inputs.
 - Import: `POST /api/v1/workflows` (strip `id`, `active`, `tags` if the API rejects them).
 - Run: trigger via test webhook or manual run. Read results with `GET /api/v1/executions?workflowId=<id>&includeData=true`.
-- Record pass/fail in `docs/<client-slug>.md`.
-- Export the final JSON to `workflows/<client-slug>/`. Remove any secrets first.
+- Record pass/fail in `projects/<client-slug>/README.md`.
+- Export the final JSON to `projects/<client-slug>/workflows/`. Remove any secrets first.
