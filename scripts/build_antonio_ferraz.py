@@ -110,10 +110,34 @@ def gmail_send(name, pos, to, subject, message):
     }, credentials=cred("gmailOAuth2"), webhookId=name.lower().replace(" ", "-"))
 
 
+# ---------- Node names (used in expressions, so keep them in one place) ----------
+N_TRIGGER = "New Email in Inbox"
+N_SETTINGS = "Settings (edit prompt here)"
+N_CLEAN = "Clean Up Email Fields"
+N_LOOP = "Loop: One Email at a Time"
+N_DONE = "All Emails Done"
+N_FIND = "Search Airtable by Message ID"
+N_IS_NEW = "New Email?"
+N_SKIP = "Skip: Already Saved"
+N_LOG = "Log Email (Status: Processing)"
+N_AI = "AI: Classify + Draft Reply"
+N_MODEL = "AI Model (OpenRouter)"
+N_FORMAT = "AI Answer Format (JSON)"
+N_CHECK = "Check AI Answer"
+N_SAVE = "Save AI Result to Airtable"
+N_DRAFT = "Create Draft Reply in Gmail"
+N_NEEDS = "Needs a Person?"
+N_ALERT = "Email Alert to Team"
+N_MARK = "Mark Alert Sent"
+N_ERR_LOG = "Mark Row as Error"
+N_ERR_ALERT = "Email AI Error Alert"
+
 # ---------- Expressions ----------
-E = "$('One Email at a Time').item.json"
-REC = "$('Save Email').item.json.id"
-AI = "$('Check AI Result').item.json"
+E = f"$('{N_LOOP}').item.json"
+REC = f"$('{N_LOG}').item.json.id"
+AI = f"$('{N_CHECK}').item.json"
+CFG = f"$('{N_SETTINGS}').item.json"
+T = f"$('{N_TRIGGER}').item.json"
 RECORD_URL = f"https://airtable.com/{BASE_ID}/{TABLE_ID}/{{{{ {REC} }}}}"
 THREAD_URL = f"https://mail.google.com/mail/u/0/#all/{{{{ {E}.threadId }}}}"
 
@@ -141,7 +165,7 @@ OUTPUT_SCHEMA = json.dumps({
 }, indent=2)
 
 CHECK_AI_CODE = """// Check the AI answer. Never trust it blindly.
-const config = $('Config').item.json;
+const config = $('%s').item.json;
 const ai = $json.output ?? {};
 const allowed = %s;
 
@@ -174,7 +198,7 @@ return {
     reviewReason: reasons.join(' '),
     status: sendAlert ? 'Needs Review' : 'Drafted',
   },
-};""" % json.dumps(CATEGORIES)
+};""" % (N_SETTINGS, json.dumps(CATEGORIES))
 
 ALERT_TEXT = (
     f"=A support email needs a person.\n\n"
@@ -199,60 +223,61 @@ ERROR_TEXT = (
 )
 
 # ---------- Nodes ----------
+# Layout: one row, left to right. Each colored note is one step.
+# Row Y is the main path. Sub-nodes and side paths sit below it.
+Y, Y_LOW, Y_ERR = 300, 500, 800
 nodes = [
-    sticky("Note: Intake", [-60, 80], 1220, 600,
-           "## 1. New email in, duplicates out\n"
-           "Checks Gmail every minute. Skips emails sent by us, so alerts never loop back.\n"
-           "**Config** holds everything you may want to edit: the AI prompt, the 80% confidence rule, and the alert email.\n"
-           "Emails go through one at a time. An email that is already in Airtable (same Message ID) is skipped.", 5),
-    sticky("Note: AI", [1180, 80], 600, 640,
-           "## 2. Log it, then let AI sort it and write a draft\n"
-           "A row is saved first with status **Processing**, so every email is tracked even if the AI fails.\n"
-           "The AI returns fixed JSON fields. **Check AI Result** cleans the answer and decides if a person must look.\n"
-           "If the AI fails after 3 tries, the row is set to **Error** and an alert is sent.", 6),
-    sticky("Note: Output", [1780, 80], 1100, 440,
-           "## 3. Save, draft, alert\n"
-           "Saves the category, confidence, and draft in Airtable. Puts the draft in the Gmail thread. It never sends the draft.\n"
-           "Sends an alert if confidence is below 80%, it is a refund, or the AI asks for a person.", 4),
-
-    node("Gmail Trigger", "n8n-nodes-base.gmailTrigger", 1.4, [0, 300], {
+    # --- Step 1 ---
+    sticky("Step 1", [-80, 120], 700, 520,
+           "## 1. Get new emails\n"
+           "Checks Gmail every minute.\n"
+           "Skips our own alert emails, so they never loop back.\n\n"
+           "**Settings** holds the things you may want to change: the AI prompt, the 80% rule, and the alert address.", 7),
+    node(N_TRIGGER, "n8n-nodes-base.gmailTrigger", 1.4, [0, Y], {
         "pollTimes": {"item": [{"mode": "everyMinute"}]},
         "simple": False,
         "filters": {"q": f"in:inbox -to:{ALERT_EMAIL}", "readStatus": "both"},
         "options": {},
     }, credentials=cred("gmailOAuth2")),
-
-    set_node("Config", [200, 300], [
+    set_node(N_SETTINGS, [220, Y], [
         assign("systemPrompt", system_prompt),
         assign("confidenceThreshold", 0.8, "number"),
         assign("alertEmail", ALERT_EMAIL),
     ]),
-
-    set_node("Normalize Email", [400, 300], [
-        assign("messageId", "={{ $('Gmail Trigger').item.json.id }}"),
-        assign("threadId", "={{ $('Gmail Trigger').item.json.threadId }}"),
-        assign("from", "={{ $('Gmail Trigger').item.json.from?.text ?? '' }}"),
-        assign("fromEmail", "={{ $('Gmail Trigger').item.json.from?.value?.[0]?.address ?? '' }}"),
-        assign("subject", "={{ $('Gmail Trigger').item.json.subject || '(no subject)' }}"),
-        assign("body", "={{ ($('Gmail Trigger').item.json.text ?? '').trim().slice(0, 6000) || '(empty message)' }}"),
-        assign("receivedAt", "={{ $('Gmail Trigger').item.json.date ?? $now.toISO() }}"),
+    set_node(N_CLEAN, [440, Y], [
+        assign("messageId", f"={{{{ {T}.id }}}}"),
+        assign("threadId", f"={{{{ {T}.threadId }}}}"),
+        assign("from", f"={{{{ {T}.from?.text ?? '' }}}}"),
+        assign("fromEmail", f"={{{{ {T}.from?.value?.[0]?.address ?? '' }}}}"),
+        assign("subject", f"={{{{ {T}.subject || '(no subject)' }}}}"),
+        assign("body", f"={{{{ ({T}.text ?? '').trim().slice(0, 6000) || '(empty message)' }}}}"),
+        assign("receivedAt", f"={{{{ {T}.date ?? $now.toISO() }}}}"),
     ]),
 
-    node("One Email at a Time", "n8n-nodes-base.splitInBatches", 3, [600, 300], {"options": {}}),
-
-    node("Find Existing Record", "n8n-nodes-base.airtable", 2.2, [800, 300], {
+    # --- Step 2 ---
+    sticky("Step 2", [640, 120], 700, 520,
+           "## 2. One at a time, no duplicates\n"
+           "Handles each email on its own.\n"
+           "If the Message ID is already in Airtable, the email is skipped.", 5),
+    node(N_LOOP, "n8n-nodes-base.splitInBatches", 3, [700, Y], {"options": {}}),
+    node(N_DONE, "n8n-nodes-base.noOp", 1, [700, Y_LOW], {}),
+    node(N_FIND, "n8n-nodes-base.airtable", 2.2, [920, Y], {
         "operation": "search", "base": rl(BASE_ID), "table": rl(TABLE_ID),
         "filterByFormula": f"={{Message ID}} = '{{{{ {E}.messageId }}}}'",
         "returnAll": False, "limit": 1,
         "options": {"fields": ["Message ID"]},
     }, credentials=cred("airtableTokenApi"),
         alwaysOutputData=True, retryOnFail=True, maxTries=3, waitBetweenTries=2000),
+    if_node(N_IS_NEW, [1140, Y], "={{ !$json.id }}"),
+    node(N_SKIP, "n8n-nodes-base.noOp", 1, [1140, Y_LOW], {}),
 
-    if_node("Is New Email?", [1000, 300], "={{ !$json.id }}"),
-
-    node("Skip Duplicate", "n8n-nodes-base.noOp", 1, [1000, 480], {}),
-
-    airtable("Save Email", [1220, 280], "create", {
+    # --- Step 3 ---
+    sticky("Step 3", [1360, 120], 920, 520,
+           "## 3. Log it, then AI reads it\n"
+           "A row is saved first with status **Processing**, so every email is tracked.\n"
+           "The AI picks a category, gives a confidence score, and writes a draft.\n"
+           "**Check AI Answer** cleans the answer and decides if a person must look.", 6),
+    airtable(N_LOG, [1420, Y], "create", {
         "Message ID": f"={{{{ {E}.messageId }}}}",
         "Thread ID": f"={{{{ {E}.threadId }}}}",
         "Status": "Processing",
@@ -262,30 +287,32 @@ nodes = [
         "Message": f"={{{{ {E}.body }}}}",
         "Execution ID": "={{ $execution.id }}",
     }, retryOnFail=True, maxTries=3, waitBetweenTries=2000),
-
-    node("Classify & Draft Reply", "@n8n/n8n-nodes-langchain.chainLlm", 1.9, [1440, 280], {
+    node(N_AI, "@n8n/n8n-nodes-langchain.chainLlm", 1.9, [1660, Y], {
         "promptType": "define",
         "text": USER_PROMPT,
         "hasOutputParser": True,
-        "messages": {"messageValues": [{"message": "={{ $('Config').item.json.systemPrompt }}"}]},
+        "messages": {"messageValues": [{"message": f"={{{{ {CFG}.systemPrompt }}}}"}]},
     }, retryOnFail=True, maxTries=3, waitBetweenTries=5000, onError="continueErrorOutput"),
-
-    node("OpenRouter Model", "@n8n/n8n-nodes-langchain.lmChatOpenRouter", 1, [1380, 520], {
+    node(N_MODEL, "@n8n/n8n-nodes-langchain.lmChatOpenRouter", 1, [1600, Y_LOW], {
         "model": MODEL,
         "options": {"temperature": 0.2, "responseFormat": "json_object", "timeout": 60000, "maxRetries": 2},
     }, credentials=cred("openRouterApi")),
-
-    node("AI Output Format", "@n8n/n8n-nodes-langchain.outputParserStructured", 1.3, [1560, 520], {
+    node(N_FORMAT, "@n8n/n8n-nodes-langchain.outputParserStructured", 1.3, [1780, Y_LOW], {
         "schemaType": "manual",
         "inputSchema": OUTPUT_SCHEMA,
     }),
-
-    node("Check AI Result", "n8n-nodes-base.code", 2, [1840, 280], {
+    node(N_CHECK, "n8n-nodes-base.code", 2, [2120, Y], {
         "mode": "runOnceForEachItem",
         "jsCode": CHECK_AI_CODE,
     }),
 
-    airtable("Save AI Result", [2060, 280], "update", {
+    # --- Step 4 ---
+    sticky("Step 4", [2300, 120], 480, 520,
+           "## 4. Save and draft\n"
+           "Saves the category, score, and draft in Airtable.\n"
+           "Puts the draft reply in the Gmail thread.\n"
+           "It never sends the reply. A person does that.", 4),
+    airtable(N_SAVE, [2360, Y], "update", {
         "id": f"={{{{ {REC} }}}}",
         "Status": "={{ $json.status }}",
         "Category": "={{ $json.category }}",
@@ -295,8 +322,7 @@ nodes = [
         "AI Summary": "={{ $json.summary }}",
         "Draft Response": "={{ $json.draftReply }}",
     }, retryOnFail=True, maxTries=3, waitBetweenTries=2000),
-
-    node("Create Gmail Draft", "n8n-nodes-base.gmail", 2.2, [2280, 280], {
+    node(N_DRAFT, "n8n-nodes-base.gmail", 2.2, [2580, Y], {
         "resource": "draft", "operation": "create",
         "subject": f"=Re: {{{{ {E}.subject }}}}",
         "emailType": "text",
@@ -304,60 +330,68 @@ nodes = [
         "options": {"threadId": f"={{{{ {E}.threadId }}}}", "sendTo": f"={{{{ {E}.fromEmail }}}}"},
     }, credentials=cred("gmailOAuth2")),
 
-    if_node("Needs a Person?", [2500, 280], f"={{{{ {AI}.sendAlert }}}}"),
-
-    gmail_send("Send Alert", [2720, 200],
-               "={{ $('Config').item.json.alertEmail }}",
+    # --- Step 5 ---
+    sticky("Step 5", [2800, 120], 700, 520,
+           "## 5. Tell a person if needed\n"
+           "Sends an alert if:\n"
+           "- confidence is below 80%, or\n"
+           "- it is a refund, or\n"
+           "- the AI asks for a person.\n\n"
+           "Then goes back for the next email.", 3),
+    if_node(N_NEEDS, [2860, Y], f"={{{{ {AI}.sendAlert }}}}"),
+    gmail_send(N_ALERT, [3080, Y],
+               f"={{{{ {CFG}.alertEmail }}}}",
                f"=[Support] {{{{ {AI}.category }}}} needs a person: {{{{ {E}.subject }}}}",
                ALERT_TEXT),
-
-    airtable("Mark Alert Sent", [2940, 200], "update", {
+    airtable(N_MARK, [3300, Y], "update", {
         "id": f"={{{{ {REC} }}}}",
         "Alert Sent": True,
     }, retryOnFail=True, maxTries=3, waitBetweenTries=2000),
 
-    sticky("Note: AI error", [1780, 560], 660, 260,
-           "## If the AI fails\nMarks the row as **Error** and emails the team.", 3),
-
-    airtable("Log AI Error", [1840, 640], "update", {
+    # --- If the AI fails ---
+    sticky("If AI fails", [1880, 680], 700, 300,
+           "## If the AI fails\n"
+           "After 3 tries, marks the row as **Error** and emails the team.\n"
+           "Then goes back for the next email.", 2),
+    airtable(N_ERR_LOG, [2120, Y_ERR], "update", {
         "id": f"={{{{ {REC} }}}}",
         "Status": "Error",
         "Needs Review": True,
         "Error Message": "={{ $json.error?.message ?? $json.error ?? 'Unknown error' }}",
     }),
-
-    gmail_send("Send AI Error Alert", [2060, 640],
-               "={{ $('Config').item.json.alertEmail }}",
+    gmail_send(N_ERR_ALERT, [2360, Y_ERR],
+               f"={{{{ {CFG}.alertEmail }}}}",
                f"=[Support] AI failed: {{{{ {E}.subject }}}}",
                ERROR_TEXT),
 ]
+
 
 def link(to, idx=0):
     return {"node": to, "type": "main", "index": idx}
 
 
 connections = {
-    "Gmail Trigger": {"main": [[link("Config")]]},
-    "Config": {"main": [[link("Normalize Email")]]},
-    "Normalize Email": {"main": [[link("One Email at a Time")]]},
-    # Output 0 = all done, output 1 = next email.
-    "One Email at a Time": {"main": [[], [link("Find Existing Record")]]},
-    "Find Existing Record": {"main": [[link("Is New Email?")]]},
-    "Is New Email?": {"main": [[link("Save Email")], [link("Skip Duplicate")]]},
-    "Save Email": {"main": [[link("Classify & Draft Reply")]]},
-    "Classify & Draft Reply": {"main": [[link("Check AI Result")], [link("Log AI Error")]]},
-    "OpenRouter Model": {"ai_languageModel": [[{"node": "Classify & Draft Reply", "type": "ai_languageModel", "index": 0}]]},
-    "AI Output Format": {"ai_outputParser": [[{"node": "Classify & Draft Reply", "type": "ai_outputParser", "index": 0}]]},
-    "Check AI Result": {"main": [[link("Save AI Result")]]},
-    "Save AI Result": {"main": [[link("Create Gmail Draft")]]},
-    "Create Gmail Draft": {"main": [[link("Needs a Person?")]]},
-    "Needs a Person?": {"main": [[link("Send Alert")], [link("One Email at a Time")]]},
-    "Send Alert": {"main": [[link("Mark Alert Sent")]]},
-    "Log AI Error": {"main": [[link("Send AI Error Alert")]]},
+    N_TRIGGER: {"main": [[link(N_SETTINGS)]]},
+    N_SETTINGS: {"main": [[link(N_CLEAN)]]},
+    N_CLEAN: {"main": [[link(N_LOOP)]]},
+    # Loop output 0 = all done, output 1 = next email.
+    N_LOOP: {"main": [[link(N_DONE)], [link(N_FIND)]]},
+    N_FIND: {"main": [[link(N_IS_NEW)]]},
+    N_IS_NEW: {"main": [[link(N_LOG)], [link(N_SKIP)]]},
+    N_LOG: {"main": [[link(N_AI)]]},
+    N_AI: {"main": [[link(N_CHECK)], [link(N_ERR_LOG)]]},
+    N_MODEL: {"ai_languageModel": [[{"node": N_AI, "type": "ai_languageModel", "index": 0}]]},
+    N_FORMAT: {"ai_outputParser": [[{"node": N_AI, "type": "ai_outputParser", "index": 0}]]},
+    N_CHECK: {"main": [[link(N_SAVE)]]},
+    N_SAVE: {"main": [[link(N_DRAFT)]]},
+    N_DRAFT: {"main": [[link(N_NEEDS)]]},
+    N_NEEDS: {"main": [[link(N_ALERT)], [link(N_LOOP)]]},
+    N_ALERT: {"main": [[link(N_MARK)]]},
+    N_ERR_LOG: {"main": [[link(N_ERR_ALERT)]]},
     # Every path ends by going back for the next email.
-    "Skip Duplicate": {"main": [[link("One Email at a Time")]]},
-    "Mark Alert Sent": {"main": [[link("One Email at a Time")]]},
-    "Send AI Error Alert": {"main": [[link("One Email at a Time")]]},
+    N_SKIP: {"main": [[link(N_LOOP)]]},
+    N_MARK: {"main": [[link(N_LOOP)]]},
+    N_ERR_ALERT: {"main": [[link(N_LOOP)]]},
 }
 
 settings = {"executionOrder": "v1", "saveDataErrorExecution": "all", "saveDataSuccessExecution": "all",

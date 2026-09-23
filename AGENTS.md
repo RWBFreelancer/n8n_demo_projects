@@ -16,6 +16,7 @@ n8n demo workflows for client job applications (automation specialist).
 | n8n API, shared workspace, credentials | `docs/n8n-access.md` |
 | Secrets, `.env` keys | `docs/secrets.md` |
 | Git, push, large files | `docs/git.md` |
+| Reports, client emails, prompts, notes | `docs/writing-style.md` |
 
 ## Folders
 - `workflows/<client-slug>/` — workflow JSON

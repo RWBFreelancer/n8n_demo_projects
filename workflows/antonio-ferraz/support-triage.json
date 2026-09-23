@@ -3,47 +3,17 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## 1. New email in, duplicates out\nChecks Gmail every minute. Skips emails sent by us, so alerts never loop back.\n**Config** holds everything you may want to edit: the AI prompt, the 80% confidence rule, and the alert email.\nEmails go through one at a time. An email that is already in Airtable (same Message ID) is skipped.",
-        "width": 1220,
-        "height": 600,
-        "color": 5
+        "content": "## 1. Get new emails\nChecks Gmail every minute.\nSkips our own alert emails, so they never loop back.\n\n**Settings** holds the things you may want to change: the AI prompt, the 80% rule, and the alert address.",
+        "width": 700,
+        "height": 520,
+        "color": 7
       },
-      "name": "Note: Intake",
+      "name": "Step 1",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -60,
-        80
-      ]
-    },
-    {
-      "parameters": {
-        "content": "## 2. Log it, then let AI sort it and write a draft\nA row is saved first with status **Processing**, so every email is tracked even if the AI fails.\nThe AI returns fixed JSON fields. **Check AI Result** cleans the answer and decides if a person must look.\nIf the AI fails after 3 tries, the row is set to **Error** and an alert is sent.",
-        "width": 600,
-        "height": 640,
-        "color": 6
-      },
-      "name": "Note: AI",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        1180,
-        80
-      ]
-    },
-    {
-      "parameters": {
-        "content": "## 3. Save, draft, alert\nSaves the category, confidence, and draft in Airtable. Puts the draft in the Gmail thread. It never sends the draft.\nSends an alert if confidence is below 80%, it is a refund, or the AI asks for a person.",
-        "width": 1100,
-        "height": 440,
-        "color": 4
-      },
-      "name": "Note: Output",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        1780,
-        80
+        -80,
+        120
       ]
     },
     {
@@ -62,7 +32,7 @@
         },
         "options": {}
       },
-      "name": "Gmail Trigger",
+      "name": "New Email in Inbox",
       "type": "n8n-nodes-base.gmailTrigger",
       "typeVersion": 1.4,
       "position": [
@@ -102,11 +72,11 @@
         },
         "options": {}
       },
-      "name": "Config",
+      "name": "Settings (edit prompt here)",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
-        200,
+        220,
         300
       ]
     },
@@ -117,67 +87,92 @@
             {
               "id": "messageId",
               "name": "messageId",
-              "value": "={{ $('Gmail Trigger').item.json.id }}",
+              "value": "={{ $('New Email in Inbox').item.json.id }}",
               "type": "string"
             },
             {
               "id": "threadId",
               "name": "threadId",
-              "value": "={{ $('Gmail Trigger').item.json.threadId }}",
+              "value": "={{ $('New Email in Inbox').item.json.threadId }}",
               "type": "string"
             },
             {
               "id": "from",
               "name": "from",
-              "value": "={{ $('Gmail Trigger').item.json.from?.text ?? '' }}",
+              "value": "={{ $('New Email in Inbox').item.json.from?.text ?? '' }}",
               "type": "string"
             },
             {
               "id": "fromEmail",
               "name": "fromEmail",
-              "value": "={{ $('Gmail Trigger').item.json.from?.value?.[0]?.address ?? '' }}",
+              "value": "={{ $('New Email in Inbox').item.json.from?.value?.[0]?.address ?? '' }}",
               "type": "string"
             },
             {
               "id": "subject",
               "name": "subject",
-              "value": "={{ $('Gmail Trigger').item.json.subject || '(no subject)' }}",
+              "value": "={{ $('New Email in Inbox').item.json.subject || '(no subject)' }}",
               "type": "string"
             },
             {
               "id": "body",
               "name": "body",
-              "value": "={{ ($('Gmail Trigger').item.json.text ?? '').trim().slice(0, 6000) || '(empty message)' }}",
+              "value": "={{ ($('New Email in Inbox').item.json.text ?? '').trim().slice(0, 6000) || '(empty message)' }}",
               "type": "string"
             },
             {
               "id": "receivedAt",
               "name": "receivedAt",
-              "value": "={{ $('Gmail Trigger').item.json.date ?? $now.toISO() }}",
+              "value": "={{ $('New Email in Inbox').item.json.date ?? $now.toISO() }}",
               "type": "string"
             }
           ]
         },
         "options": {}
       },
-      "name": "Normalize Email",
+      "name": "Clean Up Email Fields",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
-        400,
+        440,
         300
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2. One at a time, no duplicates\nHandles each email on its own.\nIf the Message ID is already in Airtable, the email is skipped.",
+        "width": 700,
+        "height": 520,
+        "color": 5
+      },
+      "name": "Step 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        640,
+        120
       ]
     },
     {
       "parameters": {
         "options": {}
       },
-      "name": "One Email at a Time",
+      "name": "Loop: One Email at a Time",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        600,
+        700,
         300
+      ]
+    },
+    {
+      "parameters": {},
+      "name": "All Emails Done",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        700,
+        500
       ]
     },
     {
@@ -193,7 +188,7 @@
           "value": "tblXRz41XCCWiRrKx",
           "mode": "id"
         },
-        "filterByFormula": "={Message ID} = '{{ $('One Email at a Time').item.json.messageId }}'",
+        "filterByFormula": "={Message ID} = '{{ $('Loop: One Email at a Time').item.json.messageId }}'",
         "returnAll": false,
         "limit": 1,
         "options": {
@@ -202,11 +197,11 @@
           ]
         }
       },
-      "name": "Find Existing Record",
+      "name": "Search Airtable by Message ID",
       "type": "n8n-nodes-base.airtable",
       "typeVersion": 2.2,
       "position": [
-        800,
+        920,
         300
       ],
       "credentials": {
@@ -231,7 +226,7 @@
           },
           "conditions": [
             {
-              "id": "Is New Email?",
+              "id": "New Email?",
               "leftValue": "={{ !$json.id }}",
               "rightValue": "",
               "operator": {
@@ -245,22 +240,37 @@
         },
         "options": {}
       },
-      "name": "Is New Email?",
+      "name": "New Email?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1000,
+        1140,
         300
       ]
     },
     {
       "parameters": {},
-      "name": "Skip Duplicate",
+      "name": "Skip: Already Saved",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        1000,
-        480
+        1140,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 3. Log it, then AI reads it\nA row is saved first with status **Processing**, so every email is tracked.\nThe AI picks a category, gives a confidence score, and writes a draft.\n**Check AI Answer** cleans the answer and decides if a person must look.",
+        "width": 920,
+        "height": 520,
+        "color": 6
+      },
+      "name": "Step 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        120
       ]
     },
     {
@@ -279,13 +289,13 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Message ID": "={{ $('One Email at a Time').item.json.messageId }}",
-            "Thread ID": "={{ $('One Email at a Time').item.json.threadId }}",
+            "Message ID": "={{ $('Loop: One Email at a Time').item.json.messageId }}",
+            "Thread ID": "={{ $('Loop: One Email at a Time').item.json.threadId }}",
             "Status": "Processing",
-            "Received At": "={{ $('One Email at a Time').item.json.receivedAt }}",
-            "From": "={{ $('One Email at a Time').item.json.from }}",
-            "Subject": "={{ $('One Email at a Time').item.json.subject }}",
-            "Message": "={{ $('One Email at a Time').item.json.body }}",
+            "Received At": "={{ $('Loop: One Email at a Time').item.json.receivedAt }}",
+            "From": "={{ $('Loop: One Email at a Time').item.json.from }}",
+            "Subject": "={{ $('Loop: One Email at a Time').item.json.subject }}",
+            "Message": "={{ $('Loop: One Email at a Time').item.json.body }}",
             "Execution ID": "={{ $execution.id }}"
           },
           "matchingColumns": [],
@@ -518,12 +528,12 @@
           "typecast": true
         }
       },
-      "name": "Save Email",
+      "name": "Log Email (Status: Processing)",
       "type": "n8n-nodes-base.airtable",
       "typeVersion": 2.2,
       "position": [
-        1220,
-        280
+        1420,
+        300
       ],
       "credentials": {
         "airtableTokenApi": {
@@ -538,22 +548,22 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=<email>\nFrom: {{ $('One Email at a Time').item.json.from }}\nSubject: {{ $('One Email at a Time').item.json.subject }}\n\n{{ $('One Email at a Time').item.json.body }}\n</email>",
+        "text": "=<email>\nFrom: {{ $('Loop: One Email at a Time').item.json.from }}\nSubject: {{ $('Loop: One Email at a Time').item.json.subject }}\n\n{{ $('Loop: One Email at a Time').item.json.body }}\n</email>",
         "hasOutputParser": true,
         "messages": {
           "messageValues": [
             {
-              "message": "={{ $('Config').item.json.systemPrompt }}"
+              "message": "={{ $('Settings (edit prompt here)').item.json.systemPrompt }}"
             }
           ]
         }
       },
-      "name": "Classify & Draft Reply",
+      "name": "AI: Classify + Draft Reply",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        1440,
-        280
+        1660,
+        300
       ],
       "retryOnFail": true,
       "maxTries": 3,
@@ -570,12 +580,12 @@
           "maxRetries": 2
         }
       },
-      "name": "OpenRouter Model",
+      "name": "AI Model (OpenRouter)",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1380,
-        520
+        1600,
+        500
       ],
       "credentials": {
         "openRouterApi": {
@@ -589,25 +599,40 @@
         "schemaType": "manual",
         "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"category\": {\n      \"type\": \"string\",\n      \"enum\": [\n        \"Billing\",\n        \"Access\",\n        \"Scheduling\",\n        \"Technical Support\",\n        \"General Question\",\n        \"Refund Request\"\n      ]\n    },\n    \"confidence\": {\n      \"type\": \"number\",\n      \"description\": \"0 to 1\"\n    },\n    \"needs_human_review\": {\n      \"type\": \"boolean\"\n    },\n    \"review_reason\": {\n      \"type\": \"string\"\n    },\n    \"summary\": {\n      \"type\": \"string\"\n    },\n    \"draft_reply\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"category\",\n    \"confidence\",\n    \"needs_human_review\",\n    \"review_reason\",\n    \"summary\",\n    \"draft_reply\"\n  ]\n}"
       },
-      "name": "AI Output Format",
+      "name": "AI Answer Format (JSON)",
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        1560,
-        520
+        1780,
+        500
       ]
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Check the AI answer. Never trust it blindly.\nconst config = $('Config').item.json;\nconst ai = $json.output ?? {};\nconst allowed = [\"Billing\", \"Access\", \"Scheduling\", \"Technical Support\", \"General Question\", \"Refund Request\"];\n\nconst knownCategory = allowed.includes(ai.category);\nconst category = knownCategory ? ai.category : 'General Question';\n\nlet confidence = Number(ai.confidence);\nif (!Number.isFinite(confidence)) confidence = 0;\nconfidence = Math.min(1, Math.max(0, confidence));\n\nconst draftReply = String(ai.draft_reply ?? '').trim();\n\n// Collect every reason a person must look at this email.\nconst reasons = [];\nif (ai.needs_human_review === true) reasons.push(ai.review_reason || 'AI asked for a human review.');\nif (!knownCategory) reasons.push('AI gave an unknown category.');\nif (!draftReply) reasons.push('AI did not write a draft.');\nif (confidence < config.confidenceThreshold) reasons.push(`Low confidence (${Math.round(confidence * 100)}%).`);\nif (category === 'Refund Request') reasons.push('Refund request.');\n\nconst sendAlert = reasons.length > 0;\n\nreturn {\n  json: {\n    category,\n    confidence,\n    summary: String(ai.summary ?? ''),\n    draftReply,\n    sendAlert,\n    reviewReason: reasons.join(' '),\n    status: sendAlert ? 'Needs Review' : 'Drafted',\n  },\n};"
+        "jsCode": "// Check the AI answer. Never trust it blindly.\nconst config = $('Settings (edit prompt here)').item.json;\nconst ai = $json.output ?? {};\nconst allowed = [\"Billing\", \"Access\", \"Scheduling\", \"Technical Support\", \"General Question\", \"Refund Request\"];\n\nconst knownCategory = allowed.includes(ai.category);\nconst category = knownCategory ? ai.category : 'General Question';\n\nlet confidence = Number(ai.confidence);\nif (!Number.isFinite(confidence)) confidence = 0;\nconfidence = Math.min(1, Math.max(0, confidence));\n\nconst draftReply = String(ai.draft_reply ?? '').trim();\n\n// Collect every reason a person must look at this email.\nconst reasons = [];\nif (ai.needs_human_review === true) reasons.push(ai.review_reason || 'AI asked for a human review.');\nif (!knownCategory) reasons.push('AI gave an unknown category.');\nif (!draftReply) reasons.push('AI did not write a draft.');\nif (confidence < config.confidenceThreshold) reasons.push(`Low confidence (${Math.round(confidence * 100)}%).`);\nif (category === 'Refund Request') reasons.push('Refund request.');\n\nconst sendAlert = reasons.length > 0;\n\nreturn {\n  json: {\n    category,\n    confidence,\n    summary: String(ai.summary ?? ''),\n    draftReply,\n    sendAlert,\n    reviewReason: reasons.join(' '),\n    status: sendAlert ? 'Needs Review' : 'Drafted',\n  },\n};"
       },
-      "name": "Check AI Result",
+      "name": "Check AI Answer",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1840,
-        280
+        2120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 4. Save and draft\nSaves the category, score, and draft in Airtable.\nPuts the draft reply in the Gmail thread.\nIt never sends the reply. A person does that.",
+        "width": 480,
+        "height": 520,
+        "color": 4
+      },
+      "name": "Step 4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2300,
+        120
       ]
     },
     {
@@ -626,7 +651,7 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "id": "={{ $('Save Email').item.json.id }}",
+            "id": "={{ $('Log Email (Status: Processing)').item.json.id }}",
             "Status": "={{ $json.status }}",
             "Category": "={{ $json.category }}",
             "Confidence": "={{ $json.confidence }}",
@@ -878,12 +903,12 @@
           "typecast": true
         }
       },
-      "name": "Save AI Result",
+      "name": "Save AI Result to Airtable",
       "type": "n8n-nodes-base.airtable",
       "typeVersion": 2.2,
       "position": [
-        2060,
-        280
+        2360,
+        300
       ],
       "credentials": {
         "airtableTokenApi": {
@@ -899,20 +924,20 @@
       "parameters": {
         "resource": "draft",
         "operation": "create",
-        "subject": "=Re: {{ $('One Email at a Time').item.json.subject }}",
+        "subject": "=Re: {{ $('Loop: One Email at a Time').item.json.subject }}",
         "emailType": "text",
-        "message": "={{ $('Check AI Result').item.json.draftReply }}",
+        "message": "={{ $('Check AI Answer').item.json.draftReply }}",
         "options": {
-          "threadId": "={{ $('One Email at a Time').item.json.threadId }}",
-          "sendTo": "={{ $('One Email at a Time').item.json.fromEmail }}"
+          "threadId": "={{ $('Loop: One Email at a Time').item.json.threadId }}",
+          "sendTo": "={{ $('Loop: One Email at a Time').item.json.fromEmail }}"
         }
       },
-      "name": "Create Gmail Draft",
+      "name": "Create Draft Reply in Gmail",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        2280,
-        280
+        2580,
+        300
       ],
       "credentials": {
         "gmailOAuth2": {
@@ -920,6 +945,21 @@
           "name": "Gmail account 2"
         }
       }
+    },
+    {
+      "parameters": {
+        "content": "## 5. Tell a person if needed\nSends an alert if:\n- confidence is below 80%, or\n- it is a refund, or\n- the AI asks for a person.\n\nThen goes back for the next email.",
+        "width": 700,
+        "height": 520,
+        "color": 3
+      },
+      "name": "Step 5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2800,
+        120
+      ]
     },
     {
       "parameters": {
@@ -933,7 +973,7 @@
           "conditions": [
             {
               "id": "Needs a Person?",
-              "leftValue": "={{ $('Check AI Result').item.json.sendAlert }}",
+              "leftValue": "={{ $('Check AI Answer').item.json.sendAlert }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
@@ -950,28 +990,28 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        2500,
-        280
+        2860,
+        300
       ]
     },
     {
       "parameters": {
         "resource": "message",
         "operation": "send",
-        "sendTo": "={{ $('Config').item.json.alertEmail }}",
-        "subject": "=[Support] {{ $('Check AI Result').item.json.category }} needs a person: {{ $('One Email at a Time').item.json.subject }}",
+        "sendTo": "={{ $('Settings (edit prompt here)').item.json.alertEmail }}",
+        "subject": "=[Support] {{ $('Check AI Answer').item.json.category }} needs a person: {{ $('Loop: One Email at a Time').item.json.subject }}",
         "emailType": "text",
-        "message": "=A support email needs a person.\n\nWhy: {{ $('Check AI Result').item.json.reviewReason }}\nCategory: {{ $('Check AI Result').item.json.category }}\nConfidence: {{ Math.round($('Check AI Result').item.json.confidence * 100) }}%\n\nFrom: {{ $('One Email at a Time').item.json.from }}\nSubject: {{ $('One Email at a Time').item.json.subject }}\nSummary: {{ $('Check AI Result').item.json.summary }}\n\nA draft reply is waiting in Gmail. Check it before you send it.\n\nOpen the email: https://mail.google.com/mail/u/0/#all/{{ $('One Email at a Time').item.json.threadId }}\nOpen the record: https://airtable.com/appVl3yjG9npCQ5Rz/tblXRz41XCCWiRrKx/{{ $('Save Email').item.json.id }}\n",
+        "message": "=A support email needs a person.\n\nWhy: {{ $('Check AI Answer').item.json.reviewReason }}\nCategory: {{ $('Check AI Answer').item.json.category }}\nConfidence: {{ Math.round($('Check AI Answer').item.json.confidence * 100) }}%\n\nFrom: {{ $('Loop: One Email at a Time').item.json.from }}\nSubject: {{ $('Loop: One Email at a Time').item.json.subject }}\nSummary: {{ $('Check AI Answer').item.json.summary }}\n\nA draft reply is waiting in Gmail. Check it before you send it.\n\nOpen the email: https://mail.google.com/mail/u/0/#all/{{ $('Loop: One Email at a Time').item.json.threadId }}\nOpen the record: https://airtable.com/appVl3yjG9npCQ5Rz/tblXRz41XCCWiRrKx/{{ $('Log Email (Status: Processing)').item.json.id }}\n",
         "options": {
           "appendAttribution": false
         }
       },
-      "name": "Send Alert",
+      "name": "Email Alert to Team",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        2720,
-        200
+        3080,
+        300
       ],
       "credentials": {
         "gmailOAuth2": {
@@ -979,7 +1019,7 @@
           "name": "Gmail account 2"
         }
       },
-      "webhookId": "send-alert"
+      "webhookId": "email-alert-to-team"
     },
     {
       "parameters": {
@@ -997,7 +1037,7 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "id": "={{ $('Save Email').item.json.id }}",
+            "id": "={{ $('Log Email (Status: Processing)').item.json.id }}",
             "Alert Sent": true
           },
           "matchingColumns": [
@@ -1247,8 +1287,8 @@
       "type": "n8n-nodes-base.airtable",
       "typeVersion": 2.2,
       "position": [
-        2940,
-        200
+        3300,
+        300
       ],
       "credentials": {
         "airtableTokenApi": {
@@ -1262,17 +1302,17 @@
     },
     {
       "parameters": {
-        "content": "## If the AI fails\nMarks the row as **Error** and emails the team.",
-        "width": 660,
-        "height": 260,
-        "color": 3
+        "content": "## If the AI fails\nAfter 3 tries, marks the row as **Error** and emails the team.\nThen goes back for the next email.",
+        "width": 700,
+        "height": 300,
+        "color": 2
       },
-      "name": "Note: AI error",
+      "name": "If AI fails",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1780,
-        560
+        1880,
+        680
       ]
     },
     {
@@ -1291,7 +1331,7 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "id": "={{ $('Save Email').item.json.id }}",
+            "id": "={{ $('Log Email (Status: Processing)').item.json.id }}",
             "Status": "Error",
             "Needs Review": true,
             "Error Message": "={{ $json.error?.message ?? $json.error ?? 'Unknown error' }}"
@@ -1539,12 +1579,12 @@
           "typecast": true
         }
       },
-      "name": "Log AI Error",
+      "name": "Mark Row as Error",
       "type": "n8n-nodes-base.airtable",
       "typeVersion": 2.2,
       "position": [
-        1840,
-        640
+        2120,
+        800
       ],
       "credentials": {
         "airtableTokenApi": {
@@ -1557,20 +1597,20 @@
       "parameters": {
         "resource": "message",
         "operation": "send",
-        "sendTo": "={{ $('Config').item.json.alertEmail }}",
-        "subject": "=[Support] AI failed: {{ $('One Email at a Time').item.json.subject }}",
+        "sendTo": "={{ $('Settings (edit prompt here)').item.json.alertEmail }}",
+        "subject": "=[Support] AI failed: {{ $('Loop: One Email at a Time').item.json.subject }}",
         "emailType": "text",
-        "message": "=The AI step failed for one support email. No draft was made.\n\nError: {{ $json.error?.message ?? $json.error ?? 'Unknown error' }}\n\nFrom: {{ $('One Email at a Time').item.json.from }}\nSubject: {{ $('One Email at a Time').item.json.subject }}\n\nOpen the email: https://mail.google.com/mail/u/0/#all/{{ $('One Email at a Time').item.json.threadId }}\nOpen the record: https://airtable.com/appVl3yjG9npCQ5Rz/tblXRz41XCCWiRrKx/{{ $('Save Email').item.json.id }}\n",
+        "message": "=The AI step failed for one support email. No draft was made.\n\nError: {{ $json.error?.message ?? $json.error ?? 'Unknown error' }}\n\nFrom: {{ $('Loop: One Email at a Time').item.json.from }}\nSubject: {{ $('Loop: One Email at a Time').item.json.subject }}\n\nOpen the email: https://mail.google.com/mail/u/0/#all/{{ $('Loop: One Email at a Time').item.json.threadId }}\nOpen the record: https://airtable.com/appVl3yjG9npCQ5Rz/tblXRz41XCCWiRrKx/{{ $('Log Email (Status: Processing)').item.json.id }}\n",
         "options": {
           "appendAttribution": false
         }
       },
-      "name": "Send AI Error Alert",
+      "name": "Email AI Error Alert",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        2060,
-        640
+        2360,
+        800
       ],
       "credentials": {
         "gmailOAuth2": {
@@ -1578,158 +1618,164 @@
           "name": "Gmail account 2"
         }
       },
-      "webhookId": "send-ai-error-alert"
+      "webhookId": "email-ai-error-alert"
     }
   ],
   "connections": {
-    "Gmail Trigger": {
+    "New Email in Inbox": {
       "main": [
         [
           {
-            "node": "Config",
+            "node": "Settings (edit prompt here)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Config": {
+    "Settings (edit prompt here)": {
       "main": [
         [
           {
-            "node": "Normalize Email",
+            "node": "Clean Up Email Fields",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Normalize Email": {
+    "Clean Up Email Fields": {
       "main": [
         [
           {
-            "node": "One Email at a Time",
+            "node": "Loop: One Email at a Time",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "One Email at a Time": {
-      "main": [
-        [],
-        [
-          {
-            "node": "Find Existing Record",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Find Existing Record": {
+    "Loop: One Email at a Time": {
       "main": [
         [
           {
-            "node": "Is New Email?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Is New Email?": {
-      "main": [
-        [
-          {
-            "node": "Save Email",
+            "node": "All Emails Done",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Skip Duplicate",
+            "node": "Search Airtable by Message ID",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Save Email": {
+    "Search Airtable by Message ID": {
       "main": [
         [
           {
-            "node": "Classify & Draft Reply",
+            "node": "New Email?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Classify & Draft Reply": {
+    "New Email?": {
       "main": [
         [
           {
-            "node": "Check AI Result",
+            "node": "Log Email (Status: Processing)",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Log AI Error",
+            "node": "Skip: Already Saved",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "OpenRouter Model": {
+    "Log Email (Status: Processing)": {
+      "main": [
+        [
+          {
+            "node": "AI: Classify + Draft Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: Classify + Draft Reply": {
+      "main": [
+        [
+          {
+            "node": "Check AI Answer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Row as Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Model (OpenRouter)": {
       "ai_languageModel": [
         [
           {
-            "node": "Classify & Draft Reply",
+            "node": "AI: Classify + Draft Reply",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "AI Output Format": {
+    "AI Answer Format (JSON)": {
       "ai_outputParser": [
         [
           {
-            "node": "Classify & Draft Reply",
+            "node": "AI: Classify + Draft Reply",
             "type": "ai_outputParser",
             "index": 0
           }
         ]
       ]
     },
-    "Check AI Result": {
+    "Check AI Answer": {
       "main": [
         [
           {
-            "node": "Save AI Result",
+            "node": "Save AI Result to Airtable",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Save AI Result": {
+    "Save AI Result to Airtable": {
       "main": [
         [
           {
-            "node": "Create Gmail Draft",
+            "node": "Create Draft Reply in Gmail",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Create Gmail Draft": {
+    "Create Draft Reply in Gmail": {
       "main": [
         [
           {
@@ -1744,21 +1790,21 @@
       "main": [
         [
           {
-            "node": "Send Alert",
+            "node": "Email Alert to Team",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "One Email at a Time",
+            "node": "Loop: One Email at a Time",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send Alert": {
+    "Email Alert to Team": {
       "main": [
         [
           {
@@ -1769,22 +1815,22 @@
         ]
       ]
     },
-    "Log AI Error": {
+    "Mark Row as Error": {
       "main": [
         [
           {
-            "node": "Send AI Error Alert",
+            "node": "Email AI Error Alert",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Skip Duplicate": {
+    "Skip: Already Saved": {
       "main": [
         [
           {
-            "node": "One Email at a Time",
+            "node": "Loop: One Email at a Time",
             "type": "main",
             "index": 0
           }
@@ -1795,18 +1841,18 @@
       "main": [
         [
           {
-            "node": "One Email at a Time",
+            "node": "Loop: One Email at a Time",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send AI Error Alert": {
+    "Email AI Error Alert": {
       "main": [
         [
           {
-            "node": "One Email at a Time",
+            "node": "Loop: One Email at a Time",
             "type": "main",
             "index": 0
           }
