@@ -1,0 +1,53 @@
+{
+  "name": "Support Inbox Triage - Error Alert",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "rwbfreelancer@gmail.com",
+        "subject": "=[Support] Workflow error: {{ $json.workflow.name }}",
+        "emailType": "text",
+        "message": "=The support triage workflow stopped with an error.\n\nNode: {{ $json.execution.lastNodeExecuted }}\nError: {{ $json.execution.error.message }}\n\nOpen the run: {{ $json.execution.url }}\n",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "name": "Send Error Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        240,
+        300
+      ],
+      "credentials": {},
+      "webhookId": "send-error-email"
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send Error Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
