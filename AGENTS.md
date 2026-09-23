@@ -1,34 +1,22 @@
 # n8n Demo Projects
 
-Demo n8n workflows I build for client job applications (automation specialist role).
-Paid or unpaid trials. The demo must run and look clean.
+n8n demo workflows for client job applications (automation specialist).
 
-## Layout
-- `workflows/<client-slug>/` — n8n workflow JSON exports
-- `docs/<client-slug>.md` — client brief, chosen route, test results
-- `docs/workflow-process.md` — full build process. Read it before any new workflow.
+## Always
+- Never print, commit, or hardcode a secret. Keys live in `.env` only. Missing key: ask me.
+- Check the app's current official docs before you build or debug. No deprecated nodes or API calls.
+- Report in ASD-STE100 plain English.
+- Commit when a change is done.
 
-## Build process (every new workflow)
-1. Read the brief. Ask me ALL missing requirements before you build. Briefs are often incomplete.
-2. Give me 3 routes. Say which one you pick and why. Wait for my choice.
-3. Build. Use MY credentials only (see below).
-4. Test by logic first. Then import and run through the n8n API if possible.
-5. Report what passed, what failed, and what I must do by hand.
+## Read when needed
+| Task | File |
+|---|---|
+| New workflow or brief | `docs/workflow-process.md` |
+| Check app docs / API versions | `docs/docs-check.md` |
+| n8n API, shared workspace, credentials | `docs/n8n-access.md` |
+| Secrets, `.env` keys | `docs/secrets.md` |
+| Git, push, large files | `docs/git.md` |
 
-## n8n access
-- Instance: `N8N_BASE_URL` in `.env`. API key: `N8N_API_KEY`, header `X-N8N-API-KEY`.
-- Shared workspace (Robert Grove): never use credentials already in it.
-  Swap every credential to mine. If you do not know which one to use, ask me.
-
-## Secrets
-- Keys live in `.env` only (gitignored). Template: `.env.example`.
-- Never print, log, commit, or hardcode a key in workflow JSON.
-- If a key is missing or empty, ask me. Do not search for one.
-
-## Git
-- Commit when you finish a change. Short, plain message.
-- Push to `origin` when a remote exists. If push fails, `git pull --rebase`, then push.
-- Nothing over 50 MB. Large assets go to `C:\GoogleDrive\ClaudeAssets\clients\<client>\`.
-
-## Reporting
-- ASD-STE100 plain English. Short sentences. Active voice. Exact paths and commands.
+## Folders
+- `workflows/<client-slug>/` — workflow JSON
+- `docs/<client-slug>.md` — brief, chosen route, test results

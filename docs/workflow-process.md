@@ -14,26 +14,24 @@
 - Paid or unpaid? Deadline?
 - Anything the client said they must see
 
-## 2. Three routes
+## 2. Check docs
+Follow `docs/docs-check.md` for every app and node in the plan.
+
+## 3. Three routes
 For each route give: nodes/apps used, cost, build time, risk, demo impact.
 Then say: "I pick route X because ...". Wait for my choice.
 
-## 3. Credentials (shared workspace)
+## 4. Credentials (shared workspace)
+See `docs/n8n-access.md`.
 1. List every credential the workflow uses (`GET /api/v1/credentials` or the JSON `credentials` fields).
 2. Map each one to my credential. Ask me when unsure.
 3. Create missing ones from `.env` values via `POST /api/v1/credentials`, or ask me to create OAuth ones in the UI (Google, Slack OAuth need a browser login).
 4. Never copy, export, or reuse the workspace owner's credentials.
 
-## 4. Test checklist
+## 5. Test checklist
+- On any error: re-check the docs first (`docs/docs-check.md`).
 - Logic: trace sample data through each node. Check expressions, field names, IF/Switch branches, empty inputs.
 - Import: `POST /api/v1/workflows` (strip `id`, `active`, `tags` if the API rejects them).
 - Run: trigger via test webhook or manual run. Read results with `GET /api/v1/executions?workflowId=<id>&includeData=true`.
 - Record pass/fail in `docs/<client-slug>.md`.
 - Export the final JSON to `workflows/<client-slug>/`. Remove any secrets first.
-
-## n8n API quick ref
-Base: `$N8N_BASE_URL/api/v1`, header `X-N8N-API-KEY: $N8N_API_KEY`
-- `GET/POST /workflows`, `GET/PUT/DELETE /workflows/{id}`
-- `POST /workflows/{id}/activate`, `/deactivate`
-- `GET /credentials/schema/{type}`, `POST /credentials`
-- `GET /executions`, `GET /executions/{id}`
