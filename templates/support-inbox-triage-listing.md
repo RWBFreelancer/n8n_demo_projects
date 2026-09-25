@@ -4,7 +4,7 @@ File: `templates/support-inbox-triage-clean.json`
 
 ## Title
 
-Triage support emails with AI, log them in Airtable, and draft Gmail replies
+Triage support emails with AI drafts, human review, and error recovery using Gmail, Airtable and OpenRouter
 
 ## Description
 
@@ -34,23 +34,24 @@ Default categories: Billing, Access, Scheduling, Technical Support, Refund Reque
 ## How to set up
 
 1. Import the workflow.
-2. Add a Gmail OAuth2 credential to the 5 Gmail nodes.
+2. Add a Gmail OAuth2 credential to **Gmail Trigger** and the 4 Gmail nodes.
 3. Add an Airtable Personal Access Token credential to the 7 Airtable nodes.
-4. Add an OpenRouter credential to **OpenRouter Chat Model** and pick a model.
-5. Add an OpenAI credential to **OpenAI Fallback Model**.
+4. Add an OpenRouter credential to **OpenRouter Response Model** and pick a model.
+5. Add an OpenAI credential to **Fallback to OpenAI Model**.
 6. Make an Airtable table with these fields:
    - `Message ID`, `Thread ID`, `From`, `Subject`, `Review Reason`, `Execution ID` (single line text)
    - `Message`, `AI Summary`, `Draft Response`, `Error Message` (long text)
    - `Status`, `Category` (single select)
    - `Received At` (date and time), `Confidence` (number)
    - `Needs Review`, `Alert Sent` (checkbox)
-7. Open **Settings**. Set `alertEmail`, `airtableBaseId`, and `airtableTableId`.
+7. Open **Set Field Parameters**. Set `alertEmail`, `airtableBaseId`, and `airtableTableId`.
 8. Open **Gmail Trigger**. In the search filter, change `alerts@example.com` to your alert address.
 9. Send yourself a test email. Check the Airtable row and the Gmail draft.
 10. Activate the workflow.
 
 ## How to customize
-Everything is in the **Settings** node:
+Everything is in the **Set Field Parameters** node:
+- Keep the Airtable `Status` options as they are (Processing, Drafted, Needs Review, Error). The workflow depends on these names.
 - `categories`: one per line, as `Name: when to use it`.
 - `alwaysReviewCategories`: categories that always alert a person (default: Refund Request).
 - `confidenceThreshold`: alert below this score (default 0.8).
