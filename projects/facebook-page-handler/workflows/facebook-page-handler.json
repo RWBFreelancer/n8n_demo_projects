@@ -1,0 +1,1453 @@
+{
+  "name": "Facebook Page Message Handler (v7 - human handoff)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Facebook Page Message Handler\n\n### What it does\nWhen someone messages your Facebook Page, this workflow answers for you. An AI reads the message and writes a short reply. If the person needs a real human, the bot sends a \"please wait\" message and alerts the team in Slack. When a team member replies by hand, the bot stays quiet for 6 hours.\n\n### How it works\n1. Facebook sends each new message to this workflow.\n2. A reply typed by a team member pauses the bot for that customer.\n3. Customer messages are handled one at a time.\n4. Messages already handled are skipped.\n5. If a human is on the chat, the bot stays quiet.\n6. The AI reads the message and the last 5 messages, then writes a reply.\n7. Code checks the AI answer with safety rules.\n8. Send the reply, or alert the team and send a \"please wait\" message.\n9. Save the chat in Airtable.\n\n### Setup\n- In Airtable, make a `Conversations` table and a `Handoffs` table. The field names are in the README.\n- Connect your credentials for Airtable, OpenRouter, Slack, and Facebook Graph API (use a Page access token).\n- In your Meta app, set the webhook URL to the production URL of **FB Messages (POST)**. Subscribe to `messages` and `message_echoes`.\n- Put your verify token in **Token OK?**. Use the same token in the Meta app.\n- Put your Meta App ID in **Parse Message** (`APP_ID`).\n- Set the Slack channel in **Alert Team**.\n\n### Words to know\n- **Webhook**: a web address. Facebook sends new messages to it.\n- **Credential**: a saved login. It lets n8n use an app for you.\n- **Echo**: a copy of a message your Page sent out. Facebook sends it back, so we can see who sent it.\n- **Handoff**: when a real person takes over the chat from the bot.\n- **Intent**: what the person wants, such as `pricing` or `greeting`.\n- **Confidence**: how sure the AI is, from 0 (not sure) to 1 (very sure).\n- **JSON**: a simple text format for data, made of names and values. Computers read it easily.",
+        "height": 1540,
+        "width": 740,
+        "color": 4
+      },
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -780,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 1. Messages come in\nFacebook sends new messages to this webhook (a web address).\n\n**Parse Message** pulls out who sent it and what it says. It skips empty messages and the bot's own replies.",
+        "height": 780,
+        "width": 480,
+        "color": 7
+      },
+      "name": "Step 1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2. Did a team member reply?\n**Yes:** save a 6 hour pause in the `Handoffs` table. The bot stays quiet for this customer.\n\n**No:** it is a customer message. Go on.",
+        "height": 780,
+        "width": 420,
+        "color": 7
+      },
+      "name": "Step 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 3. One at a time\nHandles each message on its own.\n\nWhen all are done, it stops at **Done**.",
+        "height": 780,
+        "width": 400,
+        "color": 7
+      },
+      "name": "Step 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        980,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 4. Seen it before?\nLooks for the `Message ID` in Airtable.\n\nFacebook sometimes sends the same message twice. If we saw it before, skip it.",
+        "height": 780,
+        "width": 480,
+        "color": 7
+      },
+      "name": "Step 4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1420,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 5. Is a human on this chat?\nChecks the `Handoffs` table. If the pause time has not passed, the bot stays quiet.\n\nSettings are at the top of **Handoff Check**: pause hours, office hours, and time zone.",
+        "height": 780,
+        "width": 700,
+        "color": 7
+      },
+      "name": "Step 5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1940,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 6. The AI reads and drafts\nGets the last 5 messages with this customer, so the AI knows the chat so far.\n\nThe AI picks the intent (what the person wants), a confidence score, and writes a short reply.\n\n**OpenRouter** is the service that runs the AI model.",
+        "height": 780,
+        "width": 760,
+        "color": 7
+      },
+      "name": "Step 6",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2680,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 7. Safety checks\nCode checks the AI answer. Hard rules win over the AI:\n- a greeting always gets a reply\n- \"talk to a human\" always goes to a human\n- price, demo, timeline, and complaints always go to a human\n- confidence under 0.7 goes to a human\n- a broken AI answer goes to a human",
+        "height": 780,
+        "width": 520,
+        "color": 7
+      },
+      "name": "Step 7",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 8. Reply or hand off\n**Human needed:** alert the team in Slack. Then send the customer a \"please wait\" message (a holding reply).\n\n**No human needed:** send the AI reply on Facebook.",
+        "height": 780,
+        "width": 480,
+        "color": 7
+      },
+      "name": "Step 8",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4040,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 9. Save the chat\nAdds one row to the `Conversations` table: the message, intent, confidence, reply, and status.\n\nThen goes back for the next message.",
+        "height": 780,
+        "width": 400,
+        "color": 7
+      },
+      "name": "Step 9",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4560,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Facebook setup check (one time)\nWhen you add the webhook in your Meta app, Facebook calls this address once to test it.\n\n**Token OK?** checks that the verify token (a password you pick) matches. If it matches, it sends back Facebook's test code. If not, it answers `Forbidden`.",
+        "height": 720,
+        "width": 700,
+        "color": 5
+      },
+      "name": "Facebook setup check",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "path": "fb-messenger",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "afd9d75d-3da6-46be-bcd2-01dae3a45128",
+      "name": "FB Verify (GET)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        80,
+        1160
+      ],
+      "webhookId": "cf857eff-3e6e-4707-9697-4486f882f129",
+      "notes": "Facebook calls this once to check the webhook when you set it up."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "token-match",
+              "leftValue": "={{ $json.query['hub.verify_token'] }}",
+              "rightValue": "YOUR_VERIFY_TOKEN",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "8d2ad60c-ea48-4b90-84cb-ff314225c1ca",
+      "name": "Token OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        300,
+        1160
+      ],
+      "notes": "Checks the verify token from Facebook. It must match the token in your Meta app."
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.query['hub.challenge'] }}",
+        "options": {}
+      },
+      "id": "cdae0250-49b8-46e7-aed7-54be0c80ae2c",
+      "name": "Echo Challenge",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        520,
+        1160
+      ],
+      "notes": "Sends Facebook's test code back. This proves we own the webhook."
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Forbidden",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "id": "a111ac28-5a37-4c6d-b1bc-1d48f472dfeb",
+      "name": "Reject",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        520,
+        1360
+      ],
+      "notes": "Wrong token. Answers 403 Forbidden."
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "fb-messenger",
+        "options": {}
+      },
+      "id": "8e4dd72c-4eb3-49be-a851-36b066791d67",
+      "name": "FB Messages (POST)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        80,
+        400
+      ],
+      "webhookId": "7d1a4c92-5b30-48e1-9c44-2f6b8a13e5d7",
+      "notes": "Facebook sends every new Page message here."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Put your Meta App ID here. It tells your own bot's replies apart from\n// a teammate replying by hand in the Page inbox.\nconst APP_ID = '926883426543798';\n\nconst out = [];\n\nfor (const item of $input.all()) {\n  const body = item.json.body || item.json;\n  const entries = Array.isArray(body.entry) ? body.entry : [];\n\n  for (const entry of entries) {\n    const pageId = entry.id;\n    const events = Array.isArray(entry.messaging) ? entry.messaging : [];\n\n    for (const ev of events) {\n      const msg = ev.message || {};\n\n      // An echo is a message the Page sent out\n      if (msg.is_echo === true) {\n        // Sent by our own bot, ignore it\n        if (String(msg.app_id || '') === String(APP_ID)) continue;\n\n        // Sent by a human on the team. In an echo the customer is the recipient.\n        const customerId = ev.recipient && ev.recipient.id;\n        if (!customerId) continue;\n\n        out.push({\n          json: {\n            type: 'human_reply',\n            sender_id: customerId,\n            page_id: pageId,\n            message: msg.text || '',\n            timestamp: ev.timestamp || Date.now(),\n          },\n        });\n        continue;\n      }\n\n      const senderId = ev.sender && ev.sender.id;\n      if (!senderId) continue;\n      if (senderId === pageId) continue;\n      if (!msg.mid) continue;\n\n      const text = (msg.text || '').trim();\n      if (!text) continue;\n\n      out.push({\n        json: {\n          type: 'customer',\n          message_id: msg.mid,\n          sender_id: senderId,\n          page_id: pageId,\n          message: text,\n          timestamp: ev.timestamp || Date.now(),\n        },\n      });\n    }\n  }\n}\n\nreturn out;"
+      },
+      "id": "06667cb6-f7b3-4d35-af7a-a00075b2b97c",
+      "name": "Parse Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        400
+      ],
+      "notes": "Pulls out sender, text, and message ID. Marks team replies as human_reply. Skips the bot's own replies. Set APP_ID here."
+    },
+    {
+      "parameters": {},
+      "id": "3a87e642-1c3a-4690-bb9a-7f46766afada",
+      "name": "Done",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        620
+      ],
+      "notes": "All messages are handled."
+    },
+    {
+      "parameters": {
+        "authentication": "airtableOAuth2Api",
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "apppjNbWwgg8G4sfX",
+          "mode": "list",
+          "cachedResultName": "Facebook Responder",
+          "cachedResultUrl": "https://airtable.com/apppjNbWwgg8G4sfX"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbluSZBslO8oSE4IX",
+          "mode": "list",
+          "cachedResultName": "Conversations",
+          "cachedResultUrl": "https://airtable.com/apppjNbWwgg8G4sfX/tbluSZBslO8oSE4IX"
+        },
+        "filterByFormula": "={{ \"{Message ID} = '\" + $json.message_id + \"'\" }}",
+        "returnAll": false,
+        "limit": 1,
+        "options": {}
+      },
+      "id": "0b266cc6-825c-4d31-8670-961b09dae912",
+      "name": "Check Duplicate",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1500,
+        400
+      ],
+      "retryOnFail": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableOAuth2Api": {
+          "id": "Dg7gTKnZW4gmTqA7",
+          "name": "Airtable account"
+        }
+      },
+      "notes": "Looks for this Message ID in the Conversations table."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "no-existing-row",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "64d67b9c-de6f-45ed-b5b5-1924c894462c",
+      "name": "New Message?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1720,
+        400
+      ],
+      "notes": "True: not seen before. False: a repeat from Facebook."
+    },
+    {
+      "parameters": {
+        "authentication": "airtableOAuth2Api",
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "apppjNbWwgg8G4sfX",
+          "mode": "list",
+          "cachedResultName": "Facebook Responder",
+          "cachedResultUrl": "https://airtable.com/apppjNbWwgg8G4sfX"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbluSZBslO8oSE4IX",
+          "mode": "list",
+          "cachedResultName": "Conversations",
+          "cachedResultUrl": "https://airtable.com/apppjNbWwgg8G4sfX/tbluSZBslO8oSE4IX"
+        },
+        "filterByFormula": "={{ \"{Sender ID} = '\" + $('Loop Over Messages').item.json.sender_id + \"'\" }}",
+        "returnAll": false,
+        "limit": 5,
+        "options": {},
+        "sort": {
+          "property": [
+            {
+              "field": "Timestamp",
+              "direction": "desc"
+            }
+          ]
+        }
+      },
+      "id": "34ad5024-3294-4999-a480-a4e26c46a8b4",
+      "name": "Get History",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        2800,
+        400
+      ],
+      "retryOnFail": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableOAuth2Api": {
+          "id": "Dg7gTKnZW4gmTqA7",
+          "name": "Airtable account"
+        }
+      },
+      "notes": "Gets the last 5 rows for this customer from Conversations."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Inside the loop, .first() on the loop node is the message being handled now.\nconst msg = $('Loop Over Messages').first().json;\n\nconst history = $input.all()\n  .map(i => i.json)\n  .filter(j => j && j.fields)\n  .map(j => ({\n    message: j.fields['Message'] || '',\n    reply: j.fields['Reply Sent'] || '',\n    intent: j.fields['Intent'] || '',\n  }))\n  .reverse();\n\nreturn [{\n  json: {\n    message_id: msg.message_id,\n    sender_id: msg.sender_id,\n    page_id: msg.page_id,\n    message: msg.message,\n    timestamp: msg.timestamp,\n    history,\n  },\n}];"
+      },
+      "id": "8c5f8a21-0a35-4207-b24d-6b61f93504fc",
+      "name": "Build Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3000,
+        400
+      ],
+      "notes": "Puts the new message and the history together for the AI."
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=New customer message:\n{{ $json.message }}\n\nRecent conversation history for this customer (JSON array, oldest first):\n{{ JSON.stringify($json.history) }}",
+        "options": {
+          "systemMessage": "You answer messages for BinAI, a one person AI automation studio run by Rey.\n\nWhat BinAI does:\n- Builds AI voice agents that answer calls, qualify leads and book jobs\n- Builds automations in n8n, Make and GoHighLevel that connect CRMs, forms, email and spreadsheets\n- Builds AI chat systems that sort and answer customer messages\n- Builds automated reports that pull business data and send a summary on a schedule\n\nTypical clients are small businesses, agencies and service companies who want to stop doing repeat manual work.\n\nYour job: read the new message plus the conversation history, then decide what it is and draft a short reply.\n\nRules for the reply:\n- Write like a person, not a brochure. Two or three short sentences.\n- Plain words. No buzzwords.\n- Answer what was asked. Do not pitch every service.\n- Never quote a price, a timeline, or a promise about results. You do not have that information.\n- Never claim a project was done for a named company.\n- If someone sounds ready to buy or wants to talk specifics, hand them to Rey instead of closing them yourself.\n\nReturn ONLY a JSON object with exactly these keys. No markdown, no code fences, no extra words.\n- intent: one of \"greeting\", \"human_request\", \"pricing\", \"service_info\", \"demo_request\", \"timeline\", \"support\", \"complaint\", \"spam\", \"other\"\n- confidence: a number between 0 and 1\n- needs_human: true or false\n- reply: your draft reply to the customer\n- reason: one short line explaining your decision\n\nHow to pick the intent:\n\n\"greeting\" means the person said hi, hello, good morning, or anything short with no question in it yet. This is a real person opening a conversation. Answer them warmly and ask what they are trying to automate. Never treat a greeting as spam.\n\n\"human_request\" means the person is asking for Rey or for a real person. Examples: is Rey there, can I talk to someone, are you a bot, I want to speak to a human, is this a real person. Always hand these to Rey. Never argue about whether you are a bot and never try to keep handling it yourself.\n\n\"spam\" is only for messages that are clearly not from a potential customer. Use it only when the message is selling something to us, promoting crypto or loans, pushing a link farm, is copy pasted mass outreach, or is plain gibberish with no meaning. If you are not sure, it is not spam. A short message, a vague message, or a message in another language is not spam.\n\nEverything else falls under the remaining intents.\n\nSet needs_human to true when any of these apply:\n- The message is about price, budget, or a quote\n- They want a call, a demo, or to start a project\n- They ask how long something takes or when it can be delivered\n- They describe their own business and ask if it can be automated\n- They ask for Rey or for a real person\n- They are unhappy or complaining\n- The question needs a fact you do not have\n- Your confidence is below 0.7\n\nSet needs_human to false for greetings and for plain questions you can answer from the list above, such as what BinAI does, which tools Rey uses, or whether he works with a certain platform."
+        }
+      },
+      "id": "5a9bac3c-dd95-49dc-8cbd-616b10e02a89",
+      "name": "Classify and Draft",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        3240,
+        400
+      ],
+      "onError": "continueRegularOutput",
+      "notes": "The AI picks the intent, confidence, and needs_human, and writes a reply. If it fails, the flow goes on and Parse JSON sends it to a human."
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "90be67f9-b2f4-43cf-b69a-c65ee86031e6",
+      "name": "OpenRouter Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        3240,
+        620
+      ],
+      "credentials": {
+        "openRouterApi": {
+          "id": "dtdBLF0BERFlMmxH",
+          "name": "OpenRouter account"
+        }
+      },
+      "notes": "The AI model for Classify and Draft. Change the model here."
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Build Context').first().json;\n\nlet aiOut;\ntry {\n  aiOut = $('Classify and Draft').first().json.output;\n} catch (e) {\n  aiOut = null;\n}\n\nlet parsed = null;\ntry {\n  let raw = typeof aiOut === 'string' ? aiOut : JSON.stringify(aiOut);\n  raw = raw.replace(/```json/gi, '').replace(/```/g, '').trim();\n  const start = raw.indexOf('{');\n  const end = raw.lastIndexOf('}');\n  if (start !== -1 && end !== -1) raw = raw.slice(start, end + 1);\n  parsed = JSON.parse(raw);\n} catch (e) {\n  parsed = null;\n}\n\n// A broken answer must never become a guess sent to a customer\nif (!parsed || typeof parsed !== 'object') {\n  parsed = {\n    intent: 'other',\n    confidence: 0,\n    needs_human: true,\n    reply: '',\n    reason: 'Could not read the AI output',\n  };\n}\n\nconst allowed = ['greeting', 'human_request', 'pricing', 'service_info', 'demo_request', 'timeline', 'support', 'complaint', 'spam', 'other'];\nlet intent = allowed.includes(parsed.intent) ? parsed.intent : 'other';\n\nlet conf = Number(parsed.confidence);\nif (!isFinite(conf) || conf < 0 || conf > 1) conf = 0;\n\nlet reply = typeof parsed.reply === 'string' ? parsed.reply.trim() : '';\n\nconst text = (ctx.message || '').toLowerCase().trim();\n\n// Safety net 1: never let a plain greeting be dropped as spam\nconst greetingWords = ['hi', 'hello', 'hey', 'helo', 'hii', 'good morning', 'good afternoon',\n  'good evening', 'kumusta', 'kamusta', 'musta', 'hola', 'yo', 'sup', 'good day', 'hi po', 'hello po'];\nconst stripped = text.replace(/[^a-z\\s]/g, '').trim();\nconst looksLikeGreeting = greetingWords.includes(stripped) || (stripped.split(/\\s+/).length <= 3 && greetingWords.some(g => stripped.startsWith(g)));\n\nif (looksLikeGreeting && intent === 'spam') {\n  intent = 'greeting';\n  conf = 0.9;\n}\n\n// Safety net 1b: someone asking for Rey or a human always reaches a human\nconst humanWords = ['talk to rey', 'speak to rey', 'is rey', 'rey there', 'reach rey',\n  'real person', 'talk to a human', 'talk to someone', 'speak to someone', 'speak to a human',\n  'are you a bot', 'is this a bot', 'am i talking to a bot', 'is this ai', 'are you ai',\n  'human please', 'agent please', 'customer service', 'tao ba', 'totoong tao'];\nif (humanWords.some(w => text.includes(w))) {\n  intent = 'human_request';\n  conf = Math.max(conf, 0.9);\n}\n\n// Safety net 2: spam needs real certainty, otherwise treat it as a person\nif (intent === 'spam' && conf < 0.9) {\n  intent = 'other';\n}\n\n// Safety net 3: a greeting always gets something back\nif (intent === 'greeting' && reply === '') {\n  reply = 'Hi, thanks for messaging. What part of your work are you hoping to automate?';\n  conf = Math.max(conf, 0.8);\n}\n\n// Hard rules win over whatever the model decided about itself\nconst needsHuman = intent === 'greeting'\n  ? false\n  : intent === 'human_request'\n  ? true\n  : (parsed.needs_human === true\n     || conf < 0.7\n     || ['pricing', 'demo_request', 'timeline', 'complaint'].includes(intent)\n     || reply === '');\n\n// What the customer hears while they wait for a human\nconst holdingByIntent = {\n  human_request: 'Yes, Rey handles these himself. He will reply here shortly. In the meantime, feel free to tell me what you are hoping to automate so he has some context.',\n  pricing: 'Thanks for asking. Pricing depends on what you need built, so Rey will message you himself with a real number. Usually within a few hours.',\n  demo_request: 'Happy to show you. Rey will reach out shortly to set up a quick call and walk you through a live build.',\n  timeline: 'Good question. Timing depends on the setup, so Rey will get back to you with a straight answer shortly.',\n  complaint: 'Sorry about that. A real person is reading this now and will get back to you shortly.',\n  support: 'Thanks for flagging this. Rey will take a look and get back to you shortly.',\n};\nconst holding = holdingByIntent[intent] || 'Thanks for reaching out. Rey will get back to you personally shortly.';\n\n// Only confirmed spam gets silence\nconst sendHolding = needsHuman;\n\nreturn [{\n  json: {\n    message_id: ctx.message_id,\n    sender_id: ctx.sender_id,\n    page_id: ctx.page_id,\n    message: ctx.message,\n    timestamp: ctx.timestamp,\n    intent,\n    confidence: conf,\n    needs_human: needsHuman,\n    reply,\n    holding,\n    send_holding: sendHolding,\n    reason: typeof parsed.reason === 'string' ? parsed.reason : '',\n  },\n}];"
+      },
+      "id": "164b3987-575b-4acd-8e0f-91212588690b",
+      "name": "Parse JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3580,
+        400
+      ],
+      "notes": "Reads the AI answer and applies the safety rules. Picks the holding reply."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "needs-human",
+              "leftValue": "={{ $json.needs_human }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "96c19c80-bbf2-44db-94f8-13c22e15c927",
+      "name": "Human Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3800,
+        400
+      ],
+      "notes": "True: hand off to a human. False: send the AI reply."
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0C41PNFNJU",
+          "mode": "list",
+          "cachedResultName": "new_fb_lead"
+        },
+        "text": "=:rotating_light: *Lead needs a human*\n*Intent:* {{ $('Parse JSON').first().json.intent }} (confidence {{ $('Parse JSON').first().json.confidence }})\n*Reason:* {{ $('Parse JSON').first().json.reason }}\n*From (sender ID):* {{ $('Parse JSON').first().json.sender_id }}\n*They said:* {{ $('Parse JSON').first().json.message }}\n*Auto-sent to them:* {{ $('Parse JSON').first().json.holding }}",
+        "otherOptions": {}
+      },
+      "id": "5fb9d0c1-c8a7-4ec3-818e-7daf3cd633db",
+      "name": "Alert Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        4120,
+        400
+      ],
+      "retryOnFail": true,
+      "webhookId": "05773b76-d504-4856-9a9b-a93896d4af2a",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "PwhrCa8N3LoWXg7i",
+          "name": "Slack account"
+        }
+      },
+      "notes": "Posts the lead in the Slack channel #new_fb_lead."
+    },
+    {
+      "parameters": {
+        "authentication": "airtableOAuth2Api",
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "apppjNbWwgg8G4sfX",
+          "mode": "list",
+          "cachedResultName": "Facebook Responder",
+          "cachedResultUrl": "https://airtable.com/apppjNbWwgg8G4sfX"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbluSZBslO8oSE4IX",
+          "mode": "list",
+          "cachedResultName": "Conversations",
+          "cachedResultUrl": "https://airtable.com/apppjNbWwgg8G4sfX/tbluSZBslO8oSE4IX"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Message ID": "={{ $('Parse JSON').first().json.message_id }}",
+            "Sender ID": "={{ $('Parse JSON').first().json.sender_id }}",
+            "Message": "={{ $('Parse JSON').first().json.message }}",
+            "Intent": "={{ $('Parse JSON').first().json.intent }}",
+            "Confidence": "={{ $('Parse JSON').first().json.confidence }}",
+            "Needs Human": "={{ $('Parse JSON').first().json.needs_human }}",
+            "Reply Sent": "={{ $('Parse JSON').first().json.needs_human ? $('Parse JSON').first().json.holding : $('Parse JSON').first().json.reply }}",
+            "Reason": "={{ $('Parse JSON').first().json.reason }}",
+            "Status": "={{ $('Parse JSON').first().json.needs_human ? 'escalated' : 'auto_replied' }}",
+            "Timestamp": "={{ new Date(Number($('Parse JSON').first().json.timestamp)).toISOString() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Message ID",
+              "displayName": "Message ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Sender ID",
+              "displayName": "Sender ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Sender Name",
+              "displayName": "Sender Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Message",
+              "displayName": "Message",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Intent",
+              "displayName": "Intent",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "pricing",
+                  "value": "pricing"
+                },
+                {
+                  "name": "service_info",
+                  "value": "service_info"
+                },
+                {
+                  "name": "demo_request",
+                  "value": "demo_request"
+                },
+                {
+                  "name": "timeline",
+                  "value": "timeline"
+                },
+                {
+                  "name": "support",
+                  "value": "support"
+                },
+                {
+                  "name": "complaint",
+                  "value": "complaint"
+                },
+                {
+                  "name": "spam",
+                  "value": "spam"
+                },
+                {
+                  "name": "other",
+                  "value": "other"
+                },
+                {
+                  "name": "greeting",
+                  "value": "greeting"
+                },
+                {
+                  "name": "human_request",
+                  "value": "human_request"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Confidence",
+              "displayName": "Confidence",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Needs Human",
+              "displayName": "Needs Human",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Reply Sent",
+              "displayName": "Reply Sent",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "auto_replied",
+                  "value": "auto_replied"
+                },
+                {
+                  "name": "escalated",
+                  "value": "escalated"
+                },
+                {
+                  "name": "resolved",
+                  "value": "resolved"
+                },
+                {
+                  "name": "Open",
+                  "value": "Open"
+                },
+                {
+                  "name": "Closed",
+                  "value": "Closed"
+                },
+                {
+                  "name": "Escalated",
+                  "value": "Escalated"
+                },
+                {
+                  "name": "ignored",
+                  "value": "ignored"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Handoffs",
+              "displayName": "Handoffs",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "id": "c4d93172-8c15-45b9-8ca6-d729d47e15ca",
+      "name": "Log Row",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        4720,
+        400
+      ],
+      "retryOnFail": true,
+      "credentials": {
+        "airtableOAuth2Api": {
+          "id": "Dg7gTKnZW4gmTqA7",
+          "name": "Airtable account"
+        }
+      },
+      "notes": "Saves the chat in Conversations. Status is escalated or auto_replied."
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "id": "8c315973-6d32-4d41-9819-977201adf220",
+      "name": "Loop Over Messages",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1120,
+        400
+      ],
+      "notes": "Handles one customer message at a time."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $json.page_id }}/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "facebookGraphApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_type: \"RESPONSE\", recipient: { id: $json.sender_id }, message: { text: $json.reply } }) }}",
+        "options": {}
+      },
+      "id": "77de827d-70e0-4842-a4ef-27e72ba4a2b9",
+      "name": "Send Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        4340,
+        620
+      ],
+      "retryOnFail": true,
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "C3JHDNjbjmvPROak",
+          "name": "Facebook Graph account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "Sends the AI reply on Facebook (Graph API v21.0)."
+    },
+    {
+      "parameters": {},
+      "id": "a2e54062-806b-4b26-b936-0f924fa046c2",
+      "name": "Skip Duplicate",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1720,
+        620
+      ],
+      "notes": "Skips a repeat message."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v21.0/me/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "facebookGraphApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_type: \"RESPONSE\", recipient: { id: $('Parse JSON').first().json.sender_id }, message: { text: $('Parse JSON').first().json.holding } }) }}",
+        "options": {}
+      },
+      "id": "29564667-af7b-4b9a-b225-9a49ace87fee",
+      "name": "Send Holding Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        4340,
+        400
+      ],
+      "retryOnFail": true,
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "C3JHDNjbjmvPROak",
+          "name": "Facebook Graph account"
+        }
+      },
+      "notes": "Tells the customer that Rey will reply soon."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "is-human-reply",
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "human_reply",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "f9539c94-0ca5-4f38-abf1-2ff8c364737e",
+      "name": "Human Reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        680,
+        400
+      ],
+      "notes": "True: a team member replied by hand. False: a customer message."
+    },
+    {
+      "parameters": {
+        "authentication": "airtableOAuth2Api",
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "apppjNbWwgg8G4sfX",
+          "mode": "list",
+          "cachedResultName": "Facebook Responder",
+          "cachedResultUrl": "https://airtable.com/apppjNbWwgg8G4sfX"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblWHhJo0YfeDj156",
+          "mode": "list",
+          "cachedResultName": "Handoffs",
+          "cachedResultUrl": "https://airtable.com/apppjNbWwgg8G4sfX/tblWHhJo0YfeDj156"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Sender ID": "={{ $json.sender_id }}",
+            "Last Human Reply": "={{ new Date(Number($json.timestamp)).toISOString() }}",
+            "Paused Until": "={{ new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString() }}"
+          },
+          "matchingColumns": [
+            "Sender ID"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Sender ID",
+              "displayName": "Sender ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Last Human Reply",
+              "displayName": "Last Human Reply",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Paused Until",
+              "displayName": "Paused Until",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Conversation",
+              "displayName": "Conversation",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "id": "25b257ed-7d6c-440c-af02-b78821080fe5",
+      "name": "Mark Handoff",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        680,
+        620
+      ],
+      "retryOnFail": true,
+      "credentials": {
+        "airtableOAuth2Api": {
+          "id": "Dg7gTKnZW4gmTqA7",
+          "name": "Airtable account"
+        }
+      },
+      "notes": "Saves 'Paused Until' = now + 6 hours in the Handoffs table."
+    },
+    {
+      "parameters": {
+        "authentication": "airtableOAuth2Api",
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "apppjNbWwgg8G4sfX",
+          "mode": "list",
+          "cachedResultName": "Facebook Responder",
+          "cachedResultUrl": "https://airtable.com/apppjNbWwgg8G4sfX"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblWHhJo0YfeDj156",
+          "mode": "list",
+          "cachedResultName": "Handoffs",
+          "cachedResultUrl": "https://airtable.com/apppjNbWwgg8G4sfX/tblWHhJo0YfeDj156"
+        },
+        "filterByFormula": "={{ \"{Sender ID} = '\" + $('Loop Over Messages').item.json.sender_id + \"'\" }}",
+        "returnAll": false,
+        "limit": 1,
+        "options": {}
+      },
+      "id": "6c90812c-95ce-4b5e-ab06-e8b584652de9",
+      "name": "Check Handoff",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        2020,
+        400
+      ],
+      "retryOnFail": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableOAuth2Api": {
+          "id": "Dg7gTKnZW4gmTqA7",
+          "name": "Airtable account"
+        }
+      },
+      "notes": "Looks up this customer in the Handoffs table."
+    },
+    {
+      "parameters": {
+        "jsCode": "// ---------- settings ----------\nconst PAUSE_HOURS = 6;          // how long the bot stays quiet after a human replies\nconst OFFICE_HOURS_ONLY = false; // true = bot only answers when the team is offline\nconst TZ_OFFSET = 8;            // Philippines is UTC+8\nconst OFFICE_START = 9;         // 9am\nconst OFFICE_END = 18;          // 6pm\n// ------------------------------\n\nconst msg = $('Loop Over Messages').first().json;\n\nconst rows = $input.all().map(i => i.json).filter(j => j && j.fields);\nlet pausedUntil = 0;\nif (rows.length && rows[0].fields['Paused Until']) {\n  pausedUntil = new Date(rows[0].fields['Paused Until']).getTime();\n}\n\nconst humanActive = pausedUntil > Date.now();\n\nconst local = new Date(Date.now() + TZ_OFFSET * 3600 * 1000);\nconst hour = local.getUTCHours();\nconst day = local.getUTCDay();\nconst inOffice = day >= 1 && day <= 5 && hour >= OFFICE_START && hour < OFFICE_END;\n\nconst botAllowed = !humanActive && (!OFFICE_HOURS_ONLY || !inOffice);\n\nreturn [{\n  json: {\n    ...msg,\n    bot_allowed: botAllowed,\n    human_active: humanActive,\n    in_office: inOffice,\n    paused_until: pausedUntil ? new Date(pausedUntil).toISOString() : '',\n  },\n}];"
+      },
+      "id": "e7af55c5-d830-4078-8384-d079c42b17b6",
+      "name": "Handoff Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        400
+      ],
+      "notes": "Decides if the bot may answer. Settings: PAUSE_HOURS, OFFICE_HOURS_ONLY, TZ_OFFSET, OFFICE_START, OFFICE_END."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "bot-allowed",
+              "leftValue": "={{ $json.bot_allowed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "6fbe58e3-98f2-42f1-89f1-73c0ee781f31",
+      "name": "Bot Allowed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2460,
+        400
+      ],
+      "notes": "True: the bot answers. False: a human is on the chat."
+    },
+    {
+      "parameters": {},
+      "id": "82c125dd-6b91-4d94-ba02-012cebab0234",
+      "name": "Human Handling (Stay Quiet)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2460,
+        620
+      ],
+      "notes": "A human is on this chat, so the bot says nothing."
+    }
+  ],
+  "connections": {
+    "FB Verify (GET)": {
+      "main": [
+        [
+          {
+            "node": "Token OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token OK?": {
+      "main": [
+        [
+          {
+            "node": "Echo Challenge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB Messages (POST)": {
+      "main": [
+        [
+          {
+            "node": "Parse Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Message": {
+      "main": [
+        [
+          {
+            "node": "Human Reply?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Duplicate": {
+      "main": [
+        [
+          {
+            "node": "New Message?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Message?": {
+      "main": [
+        [
+          {
+            "node": "Check Handoff",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get History": {
+      "main": [
+        [
+          {
+            "node": "Build Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Context": {
+      "main": [
+        [
+          {
+            "node": "Classify and Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify and Draft": {
+      "main": [
+        [
+          {
+            "node": "Parse JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Classify and Draft",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse JSON": {
+      "main": [
+        [
+          {
+            "node": "Human Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human Needed?": {
+      "main": [
+        [
+          {
+            "node": "Alert Team",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Team": {
+      "main": [
+        [
+          {
+            "node": "Send Holding Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Row": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Messages": {
+      "main": [
+        [
+          {
+            "node": "Done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reply": {
+      "main": [
+        [
+          {
+            "node": "Log Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Duplicate": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Holding Reply": {
+      "main": [
+        [
+          {
+            "node": "Log Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human Reply?": {
+      "main": [
+        [
+          {
+            "node": "Mark Handoff",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Handoff": {
+      "main": [
+        [
+          {
+            "node": "Handoff Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handoff Check": {
+      "main": [
+        [
+          {
+            "node": "Bot Allowed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bot Allowed?": {
+      "main": [
+        [
+          {
+            "node": "Get History",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Human Handling (Stay Quiet)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human Handling (Stay Quiet)": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}
