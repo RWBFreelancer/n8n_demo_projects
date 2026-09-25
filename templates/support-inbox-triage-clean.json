@@ -7,14 +7,14 @@
     {
       "parameters": {
         "content": "## Triage support emails with AI drafts, human review, and error recovery\n\n### How it works\n\nThis workflow triages support emails from Gmail, cleans and filters each message, checks Airtable to avoid duplicates, and uses an LLM via OpenRouter with an OpenAI fallback to classify the request and draft a reply. It saves processing state and AI results in Airtable, creates Gmail drafts, and sends review alerts when a human should inspect the response. It never sends a reply to the customer. A scheduled path also finds stuck Airtable rows and marks them as errors, while a separate error-handling lane records failures and sends alerts before continuing the email loop.\n\n### Setup steps\n\n- Connect Gmail credentials to **Gmail Trigger** and the 4 Gmail nodes (draft, review alert, error alert, stuck-row alert).\n- Connect Airtable credentials to the 7 Airtable nodes.\n- Connect OpenRouter credentials to **OpenRouter Response Model** and OpenAI credentials to **Fallback to OpenAI Model**.\n- Create an Airtable table with these fields:\n  - `Message ID`, `Thread ID`, `From`, `Subject`, `Review Reason`, `Execution ID` (single line text)\n  - `Message`, `AI Summary`, `Draft Response`, `Error Message` (long text)\n  - `Status`, `Category` (single select)\n  - `Received At` (date and time), `Confidence` (number, 2 decimals)\n  - `Needs Review`, `Alert Sent` (checkbox)\n- In **Set Field Parameters**, set `alertEmail`, `airtableBaseId` (starts with `app`), and `airtableTableId` (starts with `tbl`). Both IDs are in your Airtable table URL.\n- In **Gmail Trigger**, change `alerts@example.com` in the search filter to your `alertEmail`. This stops alert emails from looping back into the workflow.\n- Send a test email, check the Airtable row and the Gmail draft, then activate the workflow. Both triggers run once it is active.\n\n### Customization\n\nAll settings are in **Set Field Parameters**: `systemPrompt`, `categories` (one per line, as `Name: when to use it`), `fallbackCategory`, `alwaysReviewCategories`, `confidenceThreshold`, `skipSenderPatterns`, `skipBulkEmail`, and `stuckAfterMinutes`. You can also change the alert address and the schedule interval.\n\nKeep the Airtable `Status` options as they are (Processing, Drafted, Needs Review, Error). The workflow depends on these names.",
-        "width": 480,
-        "height": 1296
+        "width": 560,
+        "height": 1560
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -608,
-        96
+        -600,
+        80
       ],
       "id": "9790ad49-eb67-45a4-b5cb-89ec92991992",
       "name": "Sticky Note"
@@ -22,15 +22,15 @@
     {
       "parameters": {
         "content": "## Triggers and settings\n\nStarts from either a new Gmail message or the scheduled maintenance trigger, then loads shared triage settings and routes execution based on the trigger source.\n\n**Important:** put your alert address in the **Gmail Trigger** search filter (`-to:alerts@example.com`), so alert emails are not processed as support emails.",
-        "width": 640,
-        "height": 544,
+        "width": 680,
+        "height": 720,
         "color": 7
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -48,
-        144
+        0,
+        80
       ],
       "id": "e6a29409-7ce0-4bdc-871c-3e09fd75052e",
       "name": "Sticky Note1"
@@ -38,15 +38,15 @@
     {
       "parameters": {
         "content": "## Prepare email batch\n\nNormalizes raw Gmail message data into clean fields, processes emails one at a time, and provides the completion endpoint when the batch is finished.\n\nHTML-only emails are converted to plain text.",
-        "width": 528,
-        "height": 752,
+        "width": 460,
+        "height": 720,
         "color": 7
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        624,
-        144
+        720,
+        80
       ],
       "id": "9165564d-937e-4e0f-b1d9-00710de83b5e",
       "name": "Sticky Note2"
@@ -54,15 +54,15 @@
     {
       "parameters": {
         "content": "## Skip junk emails\n\nChecks whether the current email should be ignored (newsletters, auto-replies, no-reply senders) and loops skipped junk messages back into the batch processor.\n\nIf your contact form sends from a no-reply address, remove that word from `skipSenderPatterns`.",
-        "width": 240,
-        "height": 624,
+        "width": 400,
+        "height": 720,
         "color": 7
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1184,
-        96
+        1220,
+        80
       ],
       "id": "44ef44ae-119b-454a-9405-e8d2ca0d6b16",
       "name": "Sticky Note3"
@@ -70,15 +70,15 @@
     {
       "parameters": {
         "content": "## Deduplicate messages\n\nLooks up the email in Airtable, decides whether it is new, and skips duplicates by returning them to the loop.",
-        "width": 432,
-        "height": 752,
+        "width": 460,
+        "height": 720,
         "color": 7
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1456,
-        144
+        1660,
+        80
       ],
       "id": "b426daa6-0a1c-4186-8b50-2082689bf082",
       "name": "Sticky Note4"
@@ -86,15 +86,15 @@
     {
       "parameters": {
         "content": "## Log processing state\n\nCreates a new Airtable record with status **Processing** before AI triage begins, so every email is tracked.",
-        "width": 240,
-        "height": 368,
+        "width": 340,
+        "height": 720,
         "color": 7
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1920,
-        96
+        2160,
+        80
       ],
       "id": "7561e0f3-d064-4876-bb80-8cbf3e908995",
       "name": "Sticky Note5"
@@ -102,15 +102,15 @@
     {
       "parameters": {
         "content": "## Classify and validate\n\nUses the LLM chain to classify the email and draft a reply, with OpenRouter as the main model, OpenAI as fallback, structured output parsing, and a validation step that checks the AI response before trusting it.",
-        "width": 816,
-        "height": 768,
+        "width": 700,
+        "height": 720,
         "color": 7
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2192,
-        144
+        2540,
+        80
       ],
       "id": "14db9413-f9af-4b46-bd03-378f53cc0193",
       "name": "Sticky Note6"
@@ -118,15 +118,15 @@
     {
       "parameters": {
         "content": "## Save and draft\n\nStores the validated AI result in Airtable and creates a Gmail draft response for the support email. The draft is never sent automatically.",
-        "width": 416,
-        "height": 320,
+        "width": 460,
+        "height": 720,
         "color": 7
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        3040,
-        144
+        3280,
+        80
       ],
       "id": "62874308-63bb-4628-90bc-ec3448aa846c",
       "name": "Sticky Note7"
@@ -134,15 +134,15 @@
     {
       "parameters": {
         "content": "## Human review alerts\n\nDetermines whether the draft needs human review, sends a Gmail alert when required, marks the alert as sent in Airtable, and otherwise returns directly to the email loop.",
-        "width": 640,
-        "height": 320,
+        "width": 680,
+        "height": 720,
         "color": 7
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        3488,
-        144
+        3780,
+        80
       ],
       "id": "5fe83984-8dbb-4aa4-8241-7f07908833d3",
       "name": "Sticky Note8"
@@ -150,15 +150,15 @@
     {
       "parameters": {
         "content": "## Processing error handling\n\nCollects error details from key Airtable, AI, and Gmail steps, marks the related Airtable row as errored, sends an error alert, and resumes the loop.",
-        "width": 640,
-        "height": 320,
+        "width": 700,
+        "height": 420,
         "color": 7
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2304,
-        1072
+        2540,
+        880
       ],
       "id": "bac26c60-3bc6-43e8-9594-ae1cf25d4b0c",
       "name": "Sticky Note9"
@@ -166,15 +166,15 @@
     {
       "parameters": {
         "content": "## Stuck row recovery\n\nRuns from the scheduled path to find records left in the **Processing** state for more than `stuckAfterMinutes` (default 30), marks them as errors in Airtable, and sends a stuck-row notification.",
-        "width": 640,
-        "height": 320,
+        "width": 680,
+        "height": 420,
         "color": 7
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        624,
-        1504
+        720,
+        880
       ],
       "id": "318c5f0d-d7b6-4b8f-81db-35ba82457150",
       "name": "Sticky Note10"
@@ -199,8 +199,8 @@
       "type": "n8n-nodes-base.gmailTrigger",
       "typeVersion": 1.4,
       "position": [
-        0,
-        304
+        60,
+        400
       ],
       "id": "0eb55caa-cd30-4ef8-aa95-1a3f49e42c0f"
     },
@@ -282,8 +282,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
-        224,
-        304
+        280,
+        400
       ],
       "id": "5a52d3c2-7dc2-4377-96ce-4f6e79431b3d"
     },
@@ -296,8 +296,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        672,
-        304
+        780,
+        400
       ],
       "id": "9f5152d4-55f2-44dd-a368-b484f41c9483"
     },
@@ -309,8 +309,8 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        928,
-        304
+        1000,
+        400
       ],
       "id": "dab487fc-4416-4493-8176-e67e9540dce5"
     },
@@ -320,8 +320,8 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        1008,
-        736
+        1000,
+        620
       ],
       "id": "a59b50d0-7df4-4890-bb04-baf3d18b9816"
     },
@@ -355,8 +355,8 @@
       "maxTries": 3,
       "waitBetweenTries": 2000,
       "position": [
-        1504,
-        304
+        1720,
+        400
       ],
       "id": "6117455d-7d5c-48e7-9b90-203f44a5bbec",
       "onError": "continueErrorOutput"
@@ -390,8 +390,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1728,
-        304
+        1940,
+        400
       ],
       "id": "521b8b28-8f6b-4d03-9911-5bc7ff0c1167"
     },
@@ -401,8 +401,8 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        1744,
-        736
+        1940,
+        620
       ],
       "id": "ff797c81-984f-422f-9105-84e9800e17cc"
     },
@@ -668,8 +668,8 @@
       "maxTries": 3,
       "waitBetweenTries": 2000,
       "position": [
-        1968,
-        304
+        2220,
+        400
       ],
       "id": "c020e6c1-bdd3-4def-a437-94978815ebce",
       "onError": "continueErrorOutput"
@@ -696,8 +696,8 @@
       "maxTries": 3,
       "waitBetweenTries": 5000,
       "position": [
-        2400,
-        304
+        2600,
+        400
       ],
       "id": "af732bfa-baa8-4a16-8207-579ba097000d",
       "onError": "continueErrorOutput"
@@ -716,8 +716,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        2528,
-        768
+        2600,
+        620
       ],
       "id": "173ce3d0-b397-4859-bb47-49952af97954"
     },
@@ -730,8 +730,8 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        2896,
-        768
+        3040,
+        620
       ],
       "id": "d964bce0-ff57-4d17-beea-1dbdbea9fd52"
     },
@@ -744,8 +744,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2864,
-        304
+        3040,
+        400
       ],
       "id": "001e069c-9e0a-4c4e-952e-103f6e8a1537"
     },
@@ -1024,8 +1024,8 @@
       "maxTries": 3,
       "waitBetweenTries": 2000,
       "position": [
-        3088,
-        304
+        3340,
+        400
       ],
       "id": "58d6454d-75d3-4830-a727-9a516945caab",
       "onError": "continueErrorOutput"
@@ -1044,8 +1044,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        3312,
-        304
+        3560,
+        400
       ],
       "id": "d3fca851-73f6-4740-a0cc-e7904094899a",
       "retryOnFail": true,
@@ -1082,8 +1082,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        3536,
-        304
+        3840,
+        400
       ],
       "id": "88914d46-2da3-4fbb-b97a-bd5d890ffd02"
     },
@@ -1101,8 +1101,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        3760,
-        304
+        4060,
+        400
       ],
       "id": "c8c1fc8e-de9a-404a-83d3-afabf1b5b068",
       "retryOnFail": true,
@@ -1379,8 +1379,8 @@
       "maxTries": 3,
       "waitBetweenTries": 2000,
       "position": [
-        3984,
-        304
+        4280,
+        400
       ],
       "id": "e3261e25-8910-486c-9654-285e16c23780",
       "onError": "continueRegularOutput"
@@ -1404,8 +1404,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        2720,
-        768
+        2820,
+        620
       ],
       "id": "node-openai-fallback-model"
     },
@@ -1438,8 +1438,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1232,
-        304
+        1280,
+        400
       ],
       "id": "node-skip-this-email"
     },
@@ -1449,8 +1449,8 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        1248,
-        560
+        1280,
+        620
       ],
       "id": "node-skip-junk"
     },
@@ -1514,8 +1514,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
-        2352,
-        1232
+        2600,
+        1120
       ],
       "id": "node-collect-error-details"
     },
@@ -1785,8 +1785,8 @@
       "maxTries": 3,
       "waitBetweenTries": 2000,
       "position": [
-        2576,
-        1232
+        2820,
+        1120
       ],
       "id": "node-mark-row-as-error",
       "onError": "continueRegularOutput"
@@ -1809,8 +1809,8 @@
       "waitBetweenTries": 5000,
       "onError": "continueRegularOutput",
       "position": [
-        2800,
-        1232
+        3040,
+        1120
       ],
       "id": "node-send-error-alert"
     },
@@ -1829,8 +1829,8 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        0,
-        528
+        60,
+        620
       ],
       "id": "node-every-15-minutes"
     },
@@ -1863,8 +1863,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        448,
-        304
+        500,
+        400
       ],
       "id": "node-started-by-gmail"
     },
@@ -1899,8 +1899,8 @@
       "maxTries": 3,
       "waitBetweenTries": 2000,
       "position": [
-        672,
-        1664
+        780,
+        1120
       ],
       "id": "node-find-stuck-rows"
     },
@@ -2175,8 +2175,8 @@
       "maxTries": 3,
       "waitBetweenTries": 2000,
       "position": [
-        896,
-        1664
+        1000,
+        1120
       ],
       "id": "node-mark-stuck-row-as-error",
       "onError": "continueRegularOutput"
@@ -2199,8 +2199,8 @@
       "waitBetweenTries": 5000,
       "onError": "continueRegularOutput",
       "position": [
-        1120,
-        1664
+        1220,
+        1120
       ],
       "id": "node-send-stuck-alert"
     }
