@@ -1,0 +1,635 @@
+{
+  "name": "Weekly Sales Performance Report",
+  "nodes": [
+    {
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -700,
+        0
+      ],
+      "parameters": {
+        "content": "## Weekly Sales Performance Report\n\n### What it does\nEvery Monday at 8 AM, this workflow reads your sales sheet. It checks how each salesperson and each product did this week. It compares that to last week. Then it emails a clean report and saves a copy in Google Docs.\n\n### How it works\n1. Get all rows from the `Sales` tab in Google Sheets.\n2. No rows? Send a Slack alert and stop.\n3. Do the math in code. The AI never makes up the numbers.\n4. Find problems, such as a big drop in sales.\n5. The AI writes short notes about the numbers.\n6. Build the email and the doc text.\n7. Make the Google Doc, send the email, and log the run.\n\n### Setup\n- The `Sales` tab needs these columns: `date`, `salesperson`, `product`, `units`, `revenue`, `deal_status` (use `won` for a won deal).\n- The `Report Log` tab needs these columns: `run_date`, `rows_processed`, `flag_count`.\n- Connect your credentials for Google Sheets, Google Docs, Gmail, Slack, and OpenRouter.\n- Set who gets the email in **Email Report**.\n- Set the Google Drive folder in **Create Doc**.\n- Set the Slack channel in **Slack Zero Rows Alert**.\n- Test it with the **Execute workflow** button. Then turn the workflow on.\n\n### Words to know\n- **Credential**: a saved login. It lets n8n use an app for you.\n- **Close rate**: won deals divided by all deals. 3 won out of 10 is 30%.\n- **Percent change**: how much a number went up or down since last week. $800 to $1,000 is +25%.\n- **Flag**: a warning that something needs a look.\n- **JSON**: a simple text format for data, made of names and values. Computers read it easily.",
+        "height": 1300,
+        "width": 660,
+        "color": 4
+      },
+      "id": "b6e85c2c-6597-43b9-8502-7bec2dadb3a0"
+    },
+    {
+      "name": "Step 1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "content": "## 1. Start and get data\nRuns every Monday at 8 AM.\n\nReads every row from the `Sales` tab.\n\nIf the tab is empty, it still passes on one empty item. That lets the next step send the alert.",
+        "height": 780,
+        "width": 480,
+        "color": 7
+      },
+      "id": "fff7bed5-617f-4ad1-8783-899b1091d0a5"
+    },
+    {
+      "name": "Step 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "content": "## 2. Is there data?\nChecks that each row has a `date`.\n\n**Yes:** go on to the math.\n**No:** send a Slack alert (see below).",
+        "height": 780,
+        "width": 400,
+        "color": 7
+      },
+      "id": "2e037e74-7952-4fa8-87ee-eb28cce01afb"
+    },
+    {
+      "name": "Step 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "content": "## 3. Do the math\n**Crunch Numbers** adds up revenue, units, and deals. \"This week\" is the last 7 days. \"Last week\" is the 7 days before that.\n\n**Flag Problems** checks simple rules:\n- revenue down more than 20%\n- close rate under 15%\n- product units down more than 30%\n- product sold 0 this week, but sold last week\n\nChange these numbers in the **Flag Problems** code.",
+        "height": 780,
+        "width": 560,
+        "color": 7
+      },
+      "id": "b59f17f6-2765-4a78-99f8-f395e897566f"
+    },
+    {
+      "name": "Step 4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        0
+      ],
+      "parameters": {
+        "content": "## 4. The AI writes the words\nThe AI gets the numbers and the flags. It writes a summary, who did well, who fell behind, and 3 actions.\n\nIt must use only the numbers it gets.\n\n**OpenRouter** is the service that runs the AI model.",
+        "height": 780,
+        "width": 440,
+        "color": 7
+      },
+      "id": "5fdfe1a1-7823-4106-a244-1d279afd84b6"
+    },
+    {
+      "name": "Step 5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2040,
+        0
+      ],
+      "parameters": {
+        "content": "## 5. Build the report\nMakes two versions:\n- a styled email in HTML (the code that makes an email look nice)\n- plain text for the Google Doc\n\nIf the AI reply is broken, the report still goes out with the correct numbers.",
+        "height": 780,
+        "width": 420,
+        "color": 7
+      },
+      "id": "1d157be1-dae3-4a15-b4fe-3887c0aee814"
+    },
+    {
+      "name": "Step 6",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2500,
+        0
+      ],
+      "parameters": {
+        "content": "## 6. Save and send\nMakes a new Google Doc in your Drive folder. Then it fills the doc with the report.\n\nEmails the report with a button that opens the doc.",
+        "height": 780,
+        "width": 700,
+        "color": 7
+      },
+      "id": "707387fd-eb15-4ceb-9a5a-893e783bdeb1"
+    },
+    {
+      "name": "Step 7",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3240,
+        0
+      ],
+      "parameters": {
+        "content": "## 7. Keep a record\nAdds one row to the `Report Log` tab.\n\nThe row has the date, the number of rows read, and the number of flags.",
+        "height": 780,
+        "width": 400,
+        "color": 7
+      },
+      "id": "e2c3ce7f-f370-4c9a-b12a-12d667d7a0f7"
+    },
+    {
+      "name": "No data alert",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        520,
+        820
+      ],
+      "parameters": {
+        "content": "## No data alert\nIf the `Sales` tab has no rows, this sends a message to the Slack channel `#acctg_report`.\n\nNo report is made that week.",
+        "height": 480,
+        "width": 520,
+        "color": 3
+      },
+      "id": "25494f43-1e3c-4ed7-a5ce-e8b610f738c1"
+    },
+    {
+      "id": "9f772da6-5e4f-4965-8fe5-2cabf5b7205a",
+      "name": "Monday 8AM",
+      "notes": "Starts the workflow every Monday at 8 AM (n8n instance time zone).",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        80,
+        400
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "2cb08084-9f5c-4722-8c79-7197a4bd0963",
+      "name": "Get Sales",
+      "notes": "Reads all rows from the Sales tab. Tries again if Google fails. Always passes on at least one item.",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "position": [
+        300,
+        400
+      ],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1UQuViQio6vn-8eAPvVlh5Y0FvqwPX0INB_8IYG92y0s",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sales"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "VSrz1GEdK4cXh9SX",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "id": "56d81d44-6648-493b-89a7-bfe8cf5dad4e",
+      "name": "Has Sales Rows",
+      "notes": "True: the row has a date. False: no data, so send the Slack alert.",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        680,
+        400
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-date",
+              "leftValue": "={{ $json.date }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3b2c1c7d-72aa-4c48-9fb4-0ddbc0304c29",
+      "name": "Crunch Numbers",
+      "notes": "Adds up this week (last 7 days) and last week (the 7 days before) per salesperson and per product.",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst rows = items.map(i => i.json).filter(r => r && r.date);\n\nconst now = new Date();\nconst msDay = 24 * 60 * 60 * 1000;\nconst thisStart = new Date(now.getTime() - 7 * msDay);\nconst prevStart = new Date(now.getTime() - 14 * msDay);\n\nfunction num(v) {\n  const n = parseFloat(String(v == null ? '' : v).replace(/[^0-9.\\-]/g, ''));\n  return isNaN(n) ? 0 : n;\n}\nfunction parseDate(d) {\n  const t = new Date(d);\n  return isNaN(t.getTime()) ? null : t;\n}\n\nconst sp = {};\nconst pr = {};\nfunction ensureSp(name) {\n  if (!sp[name]) sp[name] = { revenueThis: 0, revenueLast: 0, unitsThis: 0, unitsLast: 0, wonDeals: 0, totalDeals: 0 };\n  return sp[name];\n}\nfunction ensurePr(name) {\n  if (!pr[name]) pr[name] = { revenueThis: 0, revenueLast: 0, unitsThis: 0, unitsLast: 0 };\n  return pr[name];\n}\n\nfor (const r of rows) {\n  const d = parseDate(r.date);\n  if (!d) continue;\n  const isThis = d >= thisStart && d <= now;\n  const isLast = d >= prevStart && d < thisStart;\n  if (!isThis && !isLast) continue;\n  const rev = num(r.revenue);\n  const units = num(r.units);\n  const person = String(r.salesperson || 'Unknown').trim();\n  const product = String(r.product || 'Unknown').trim();\n  const s = ensureSp(person);\n  const p = ensurePr(product);\n  if (isThis) {\n    s.revenueThis += rev; s.unitsThis += units;\n    p.revenueThis += rev; p.unitsThis += units;\n    s.totalDeals += 1;\n    if (String(r.deal_status || '').trim().toLowerCase() === 'won') s.wonDeals += 1;\n  } else {\n    s.revenueLast += rev; s.unitsLast += units;\n    p.revenueLast += rev; p.unitsLast += units;\n  }\n}\n\nfunction pct(cur, prev) {\n  if (prev === 0) return null;\n  return Math.round(((cur - prev) / prev) * 1000) / 10;\n}\nfunction r2(n) { return Math.round(n * 100) / 100; }\n\nconst salespeople = {};\nfor (const [name, v] of Object.entries(sp)) {\n  salespeople[name] = {\n    revenueThis: r2(v.revenueThis),\n    revenueLast: r2(v.revenueLast),\n    revenuePctChange: pct(v.revenueThis, v.revenueLast),\n    unitsThis: v.unitsThis,\n    unitsLast: v.unitsLast,\n    unitsPctChange: pct(v.unitsThis, v.unitsLast),\n    wonDeals: v.wonDeals,\n    totalDeals: v.totalDeals,\n    closeRate: v.totalDeals > 0 ? Math.round((v.wonDeals / v.totalDeals) * 1000) / 1000 : 0,\n  };\n}\nconst products = {};\nfor (const [name, v] of Object.entries(pr)) {\n  products[name] = {\n    revenueThis: r2(v.revenueThis),\n    revenueLast: r2(v.revenueLast),\n    revenuePctChange: pct(v.revenueThis, v.revenueLast),\n    unitsThis: v.unitsThis,\n    unitsLast: v.unitsLast,\n    unitsPctChange: pct(v.unitsThis, v.unitsLast),\n  };\n}\n\nconst weekEnding = now.toISOString().slice(0, 10);\nreturn [{ json: { weekEnding, rowsProcessed: rows.length, salespeople, products } }];"
+      }
+    },
+    {
+      "id": "1b59dbf4-7db2-4fa8-adaf-98c53827850e",
+      "name": "Flag Problems",
+      "notes": "Makes a list of problems. Limits: revenue -20%, close rate 15%, units -30%, 0 units sold.",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst sp = data.salespeople || {};\nconst pr = data.products || {};\nconst flags = [];\n\nfor (const [name, v] of Object.entries(sp)) {\n  if (v.revenuePctChange !== null && v.revenuePctChange < -20) {\n    flags.push({ type: 'revenue_drop', name, revenueThis: v.revenueThis, revenueLast: v.revenueLast, revenuePctChange: v.revenuePctChange });\n  }\n  if (v.closeRate < 0.15) {\n    flags.push({ type: 'low_close_rate', name, closeRate: v.closeRate, wonDeals: v.wonDeals, totalDeals: v.totalDeals });\n  }\n}\nfor (const [name, v] of Object.entries(pr)) {\n  if (v.unitsPctChange !== null && v.unitsPctChange < -30) {\n    flags.push({ type: 'product_units_drop', name, unitsThis: v.unitsThis, unitsLast: v.unitsLast, unitsPctChange: v.unitsPctChange });\n  }\n  if (v.unitsThis === 0 && v.unitsLast > 0) {\n    flags.push({ type: 'product_zero_sales', name, unitsThis: 0, unitsLast: v.unitsLast });\n  }\n}\n\nreturn [{\n  json: {\n    weekEnding: data.weekEnding,\n    rowsProcessed: data.rowsProcessed,\n    numbers: { salespeople: sp, products: pr },\n    flags,\n    flagCount: flags.length,\n  },\n}];"
+      }
+    },
+    {
+      "id": "b9da9e62-64ae-4875-be10-daf56f45e8d0",
+      "name": "Write Report",
+      "notes": "The AI writes the report text as JSON. It uses only the numbers it gets.",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1720,
+        400
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write the weekly sales report from this data.\n\nNUMBERS (JSON):\n{{ JSON.stringify($json.numbers) }}\n\nFLAGS (JSON):\n{{ JSON.stringify($json.flags) }}\n\nWeek ending: {{ $json.weekEnding }}",
+        "options": {
+          "systemMessage": "You write the words for a weekly sales report read by managers.\n\nRules:\n- Use only the numbers given. Never invent a figure, a name, or a cause you cannot see in the data.\n- Plain language. Short sentences. No buzzwords. No markdown symbols.\n- Do not build tables. Those are handled elsewhere.\n- Refer to numbers in your sentences, but keep it readable.\n\nReturn ONLY a JSON object with exactly these keys. No code fences, no extra words.\n{\n  \"summary\": \"exactly three sentences on how the week went\",\n  \"top_performers\": \"two or three sentences naming who moved the most revenue and by how much\",\n  \"underperformers\": \"two or three sentences on whose numbers fell, with the figures. If nobody fell, say so plainly.\",\n  \"product_movement\": \"two or three sentences on which products moved and which stalled\",\n  \"flagged_problems\": [\"one line per flag, naming the person or product, the number, and the likely cause\"],\n  \"actions\": [\"three specific things to do this week\"]\n}\n\nIf there are no flags, return an empty array for flagged_problems and say in the summary that nothing was flagged."
+        }
+      }
+    },
+    {
+      "id": "19c4111e-63ef-4e0f-8233-ce9d74e488cc",
+      "name": "Create Doc",
+      "notes": "Makes an empty Google Doc named 'Weekly Sales Report - <date>' in the Drive folder.",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "retryOnFail": true,
+      "position": [
+        2580,
+        400
+      ],
+      "parameters": {
+        "folderId": "1NqQW6Jm4SwObgAirGTK_3DjSMJf1NJ_P",
+        "title": "=Weekly Sales Report - {{ $('Flag Problems').item.json.weekEnding }}"
+      },
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "nRkBH7HBV8kFPviv",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "id": "967699c1-976d-4675-9fe4-6bc17e9b4839",
+      "name": "Insert Doc Body",
+      "notes": "Puts the plain text report into the new doc.",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "retryOnFail": true,
+      "position": [
+        2800,
+        400
+      ],
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.id }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $('Build Report').item.json.plainText }}"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "nRkBH7HBV8kFPviv",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "id": "efc9168c-b090-4521-8dac-7e088c4b661d",
+      "name": "Email Report",
+      "webhookId": "5caf797d-1db7-4026-ac6c-84db79b264bc",
+      "notes": "Sends the HTML report. Swaps __DOC_LINK__ for the real doc link.",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "retryOnFail": true,
+      "position": [
+        3020,
+        400
+      ],
+      "parameters": {
+        "sendTo": "youtuba6969@gmail.com",
+        "subject": "={{ $('Build Report').item.json.subject }}",
+        "message": "={{ $('Build Report').item.json.html.replace('__DOC_LINK__', 'https://docs.google.com/document/d/' + $('Create Doc').item.json.id + '/edit') }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "KZB3vqszOfledt03",
+          "name": "rwbfreelancer"
+        }
+      }
+    },
+    {
+      "id": "9dd4d2a5-8257-454c-8361-84883608c0e1",
+      "name": "Log Run",
+      "notes": "Adds one row to the Report Log tab: date, rows read, flag count.",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "retryOnFail": true,
+      "position": [
+        3400,
+        400
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1UQuViQio6vn-8eAPvVlh5Y0FvqwPX0INB_8IYG92y0s",
+          "mode": "list",
+          "cachedResultName": "Sales Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1UQuViQio6vn-8eAPvVlh5Y0FvqwPX0INB_8IYG92y0s/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Report Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "run_date": "={{ $now.toFormat(\"yyyy-MM-dd\") }}",
+            "rows_processed": "={{ $('Flag Problems').item.json.rowsProcessed }}",
+            "flag_count": "={{ $('Flag Problems').item.json.flagCount }}"
+          },
+          "schema": [
+            {
+              "id": "run_date",
+              "displayName": "run_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "rows_processed",
+              "displayName": "rows_processed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "flag_count",
+              "displayName": "flag_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "VSrz1GEdK4cXh9SX",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "id": "73aa96fe-e754-488c-81f3-aad297723818",
+      "name": "Slack Zero Rows Alert",
+      "webhookId": "4e248944-e1ca-4f6f-b7e1-14f001e71677",
+      "notes": "Tells the team in Slack that no report was made, because the sheet had no rows.",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        580,
+        1100
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0C35KLVC5C",
+          "mode": "list",
+          "cachedResultName": "acctg_report"
+        },
+        "text": "=Weekly Sales Report skipped: the Sales sheet returned zero rows on {{ $now.toFormat(\"yyyy-MM-dd\") }}. The AI report was not generated.",
+        "otherOptions": {}
+      },
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "PwhrCa8N3LoWXg7i",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "id": "94952337-8873-4f6e-b7e8-855d10e2f6d8",
+      "name": "OpenRouter Chat Model",
+      "notes": "The AI model used by Write Report. Change the model here.",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1720,
+        620
+      ],
+      "parameters": {
+        "model": "anthropic/claude-sonnet-5",
+        "options": {}
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "dtdBLF0BERFlMmxH",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "id": "f75e7999-21c6-4794-841b-3a70c770780f",
+      "name": "Build Report",
+      "notes": "Builds the HTML email, the plain text for the doc, and the email subject.",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const data = $('Flag Problems').first().json;\n\nlet text = '';\ntry {\n  text = $('Write Report').first().json.output || '';\n} catch (e) { text = ''; }\n\n// Pull the JSON out even if the model wrapped it in fences\nlet ai = null;\ntry {\n  let raw = String(text).replace(/```json/gi, '').replace(/```/g, '').trim();\n  const s = raw.indexOf('{'), e = raw.lastIndexOf('}');\n  if (s !== -1 && e !== -1) raw = raw.slice(s, e + 1);\n  ai = JSON.parse(raw);\n} catch (e) { ai = null; }\n\nif (!ai || typeof ai !== 'object') {\n  ai = {\n    summary: 'The written summary could not be generated this week. The numbers below are still correct.',\n    top_performers: '', underperformers: '', product_movement: '',\n    flagged_problems: [], actions: [],\n  };\n}\n\nconst esc = (s) => String(s == null ? '' : s)\n  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n\nconst money = (n) => '$' + Number(n || 0).toLocaleString('en-US');\n\nconst people = Object.entries(data.numbers.salespeople || {});\nconst products = Object.entries(data.numbers.products || {});\n\nconst totalThis = people.reduce((s, [, v]) => s + (v.revenueThis || 0), 0);\nconst totalLast = people.reduce((s, [, v]) => s + (v.revenueLast || 0), 0);\nconst totalPct = totalLast === 0 ? null : Math.round(((totalThis - totalLast) / totalLast) * 1000) / 10;\n\n// Colour a percent change. Grey when there is no basis for comparison.\nconst delta = (p) => {\n  if (p === null || p === undefined) return '<span style=\"color:#8a8a8a;\">n/a</span>';\n  const up = p >= 0;\n  const colour = up ? '#1a7f4b' : '#b3261e';\n  return '<span style=\"color:' + colour + ';font-weight:600;\">' + (up ? '+' : '') + p + '%</span>';\n};\n\nconst th = 'style=\"padding:10px 12px;text-align:left;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#6b6b6b;border-bottom:1px solid #e3e3e3;font-weight:600;\"';\nconst thR = 'style=\"padding:10px 12px;text-align:right;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#6b6b6b;border-bottom:1px solid #e3e3e3;font-weight:600;\"';\nconst td = 'style=\"padding:11px 12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#1c1c1c;\"';\nconst tdR = 'style=\"padding:11px 12px;border-bottom:1px solid #f0f0f0;font-size:14px;color:#1c1c1c;text-align:right;\"';\n\nconst section = (title, body) => body ? (\n  '<tr><td style=\"padding:22px 28px 0 28px;\">' +\n  '<div style=\"font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#6b6b6b;font-weight:600;margin-bottom:6px;\">' + esc(title) + '</div>' +\n  '<div style=\"font-size:15px;line-height:1.6;color:#1c1c1c;\">' + esc(body) + '</div>' +\n  '</td></tr>') : '';\n\n// People table, biggest earner first\nconst peopleRows = people\n  .sort((a, b) => (b[1].revenueThis || 0) - (a[1].revenueThis || 0))\n  .map(([name, v]) => {\n    const close = Math.round((v.closeRate || 0) * 100);\n    const lowClose = close < 15 && v.totalDeals >= 3;\n    return '<tr>' +\n      '<td ' + td + '>' + esc(name) + '</td>' +\n      '<td ' + tdR + '>' + money(v.revenueThis) + '</td>' +\n      '<td ' + tdR + '>' + money(v.revenueLast) + '</td>' +\n      '<td ' + tdR + '>' + delta(v.revenuePctChange) + '</td>' +\n      '<td ' + tdR + '>' + (lowClose ? '<span style=\"color:#b3261e;font-weight:600;\">' + close + '%</span>' : close + '%') + '</td>' +\n      '</tr>';\n  }).join('');\n\nconst productRows = products\n  .sort((a, b) => (b[1].revenueThis || 0) - (a[1].revenueThis || 0))\n  .map(([name, v]) => {\n    const stalled = v.unitsThis === 0 && v.unitsLast > 0;\n    return '<tr>' +\n      '<td ' + td + '>' + esc(name) + (stalled ? ' <span style=\"color:#b3261e;font-size:12px;\">stalled</span>' : '') + '</td>' +\n      '<td ' + tdR + '>' + (v.unitsThis || 0) + '</td>' +\n      '<td ' + tdR + '>' + (v.unitsLast || 0) + '</td>' +\n      '<td ' + tdR + '>' + delta(v.unitsPctChange) + '</td>' +\n      '<td ' + tdR + '>' + money(v.revenueThis) + '</td>' +\n      '</tr>';\n  }).join('');\n\nconst flagList = Array.isArray(ai.flagged_problems) ? ai.flagged_problems : [];\nconst flagBlock = flagList.length\n  ? '<tr><td style=\"padding:22px 28px 0 28px;\">' +\n    '<div style=\"font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#6b6b6b;font-weight:600;margin-bottom:8px;\">Flagged problems</div>' +\n    flagList.map(f =>\n      '<div style=\"border-left:3px solid #b3261e;background:#fdf3f2;padding:10px 14px;margin-bottom:8px;font-size:14px;line-height:1.55;color:#1c1c1c;\">' + esc(f) + '</div>'\n    ).join('') + '</td></tr>'\n  : '<tr><td style=\"padding:22px 28px 0 28px;\">' +\n    '<div style=\"border-left:3px solid #1a7f4b;background:#f1f8f3;padding:10px 14px;font-size:14px;color:#1c1c1c;\">Nothing was flagged this week.</div>' +\n    '</td></tr>';\n\nconst actions = Array.isArray(ai.actions) ? ai.actions : [];\nconst actionBlock = actions.length\n  ? '<tr><td style=\"padding:22px 28px 0 28px;\">' +\n    '<div style=\"font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#6b6b6b;font-weight:600;margin-bottom:8px;\">Suggested actions</div>' +\n    '<ol style=\"margin:0;padding-left:20px;font-size:15px;line-height:1.7;color:#1c1c1c;\">' +\n    actions.map(a => '<li style=\"margin-bottom:4px;\">' + esc(a) + '</li>').join('') +\n    '</ol></td></tr>'\n  : '';\n\nconst table = (title, head, rows) =>\n  '<tr><td style=\"padding:24px 28px 0 28px;\">' +\n  '<div style=\"font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#6b6b6b;font-weight:600;margin-bottom:8px;\">' + title + '</div>' +\n  '<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"border-collapse:collapse;border:1px solid #e3e3e3;border-radius:6px;overflow:hidden;\">' +\n  '<tr style=\"background:#fafafa;\">' + head + '</tr>' + rows + '</table></td></tr>';\n\nconst html =\n'<!DOCTYPE html><html><body style=\"margin:0;padding:0;background:#f4f4f5;\">' +\n'<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"background:#f4f4f5;padding:24px 12px;\">' +\n'<tr><td align=\"center\">' +\n'<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"640\" style=\"max-width:640px;width:100%;background:#ffffff;border-radius:10px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,\\'Segoe UI\\',Roboto,Arial,sans-serif;box-shadow:0 1px 3px rgba(0,0,0,.08);\">' +\n\n// header\n'<tr><td style=\"background:#16181d;padding:26px 28px;\">' +\n'<div style=\"color:#ffffff;font-size:20px;font-weight:600;letter-spacing:-.01em;\">Weekly Sales Report</div>' +\n'<div style=\"color:#9aa0a6;font-size:13px;margin-top:4px;\">Week ending ' + esc(data.weekEnding) + ' &nbsp;&middot;&nbsp; ' + (data.rowsProcessed || 0) + ' deals reviewed</div>' +\n'</td></tr>' +\n\n// headline number\n'<tr><td style=\"padding:24px 28px 0 28px;\">' +\n'<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\"><tr>' +\n'<td style=\"background:#fafafa;border:1px solid #e9e9e9;border-radius:8px;padding:16px 18px;\" width=\"50%\">' +\n'<div style=\"font-size:12px;color:#6b6b6b;text-transform:uppercase;letter-spacing:.05em;\">Revenue this week</div>' +\n'<div style=\"font-size:26px;font-weight:700;color:#16181d;margin-top:4px;\">' + money(totalThis) + '</div>' +\n'<div style=\"font-size:13px;margin-top:2px;\">' + delta(totalPct) + ' <span style=\"color:#6b6b6b;\">vs ' + money(totalLast) + ' last week</span></div>' +\n'</td><td width=\"12\"></td>' +\n'<td style=\"background:#fafafa;border:1px solid #e9e9e9;border-radius:8px;padding:16px 18px;\" width=\"50%\">' +\n'<div style=\"font-size:12px;color:#6b6b6b;text-transform:uppercase;letter-spacing:.05em;\">Flagged problems</div>' +\n'<div style=\"font-size:26px;font-weight:700;color:' + (data.flagCount ? '#b3261e' : '#1a7f4b') + ';margin-top:4px;\">' + (data.flagCount || 0) + '</div>' +\n'<div style=\"font-size:13px;color:#6b6b6b;margin-top:2px;\">' + (data.flagCount ? 'need a look this week' : 'all clear') + '</div>' +\n'</td></tr></table></td></tr>' +\n\nsection('Summary', ai.summary) +\nflagBlock +\n\ntable('By salesperson',\n  '<th ' + th + '>Name</th><th ' + thR + '>Revenue</th><th ' + thR + '>Last week</th><th ' + thR + '>Change</th><th ' + thR + '>Close rate</th>',\n  peopleRows) +\n\ntable('By product',\n  '<th ' + th + '>Product</th><th ' + thR + '>Units</th><th ' + thR + '>Last week</th><th ' + thR + '>Change</th><th ' + thR + '>Revenue</th>',\n  productRows) +\n\nsection('Top performers', ai.top_performers) +\nsection('Needs attention', ai.underperformers) +\nsection('Product movement', ai.product_movement) +\nactionBlock +\n\n// footer\n'<tr><td style=\"padding:26px 28px 28px 28px;\">' +\n'<div style=\"border-top:1px solid #ededed;padding-top:16px;\">' +\n'<a href=\"__DOC_LINK__\" style=\"display:inline-block;background:#16181d;color:#ffffff;text-decoration:none;font-size:14px;font-weight:500;padding:10px 18px;border-radius:6px;\">Open the full document</a>' +\n'<div style=\"color:#9aa0a6;font-size:12px;margin-top:14px;line-height:1.5;\">Generated automatically from the Sales sheet. All figures are calculated in the workflow, not written by AI.</div>' +\n'</div></td></tr>' +\n\n'</table></td></tr></table></body></html>';\n\n// Plain version for the Google Doc\nconst plain = [\n  'WEEKLY SALES REPORT',\n  'Week ending ' + data.weekEnding,\n  '',\n  'SUMMARY',\n  ai.summary || '',\n  '',\n  'TOP PERFORMERS',\n  ai.top_performers || '',\n  '',\n  'NEEDS ATTENTION',\n  ai.underperformers || '',\n  '',\n  'PRODUCT MOVEMENT',\n  ai.product_movement || '',\n  '',\n  'FLAGGED PROBLEMS',\n  flagList.length ? flagList.map(f => '- ' + f).join('\\n') : 'None this week.',\n  '',\n  'SUGGESTED ACTIONS',\n  actions.map((a, i) => (i + 1) + '. ' + a).join('\\n'),\n].join('\\n');\n\nreturn [{\n  json: {\n    html,\n    plainText: plain,\n    subject: 'Weekly Sales Report - ' + data.weekEnding + (data.flagCount ? ' (' + data.flagCount + ' flagged)' : ''),\n    weekEnding: data.weekEnding,\n    flagCount: data.flagCount,\n  },\n}];"
+      }
+    }
+  ],
+  "connections": {
+    "Monday 8AM": {
+      "main": [
+        [
+          {
+            "node": "Get Sales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Sales": {
+      "main": [
+        [
+          {
+            "node": "Has Sales Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Sales Rows": {
+      "main": [
+        [
+          {
+            "node": "Crunch Numbers",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack Zero Rows Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crunch Numbers": {
+      "main": [
+        [
+          {
+            "node": "Flag Problems",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flag Problems": {
+      "main": [
+        [
+          {
+            "node": "Write Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Report": {
+      "main": [
+        [
+          {
+            "node": "Build Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Doc": {
+      "main": [
+        [
+          {
+            "node": "Insert Doc Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Doc Body": {
+      "main": [
+        [
+          {
+            "node": "Email Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Report": {
+      "main": [
+        [
+          {
+            "node": "Log Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Write Report",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Report": {
+      "main": [
+        [
+          {
+            "node": "Create Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}
