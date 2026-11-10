@@ -1,4 +1,5 @@
 @echo off
+setlocal EnableDelayedExpansion
 title Sync - uploading your work
 cd /d "%~dp0"
 
@@ -23,7 +24,13 @@ git add -A
 echo  [2/4] Saving a checkpoint...
 git diff --cached --quiet
 if errorlevel 1 (
-    git commit -m "sync from %COMPUTERNAME% - %DATE% %TIME%"
+    git status --short
+    echo.
+    set "MSG="
+    set /p "MSG=       What did you change? (Enter = date only): "
+    if not defined MSG set "MSG=sync from %COMPUTERNAME% - %DATE% %TIME%"
+    set "MSG=!MSG:"='!"
+    git commit -m "!MSG!"
 ) else (
     echo        nothing new to save
 )
